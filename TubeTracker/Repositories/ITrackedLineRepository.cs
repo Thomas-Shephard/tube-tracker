@@ -10,4 +10,5 @@ public interface ITrackedLineRepository
     Task AddAsync(TrackedLine trackedLine, IDbTransaction? transaction = null);
     Task UpdateAsync(TrackedLine trackedLine, IDbTransaction? transaction = null);
     Task DeleteAsync(int userId, int lineId, IDbTransaction? transaction = null);
+    Task<IEnumerable<TrackedLine>> GetAllAsync();
 }

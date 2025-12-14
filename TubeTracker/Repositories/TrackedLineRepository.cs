@@ -26,7 +26,7 @@ public class TrackedLineRepository(IDbConnection connection) : ITrackedLineRepos
 
     public async Task UpdateAsync(TrackedLine trackedLine, IDbTransaction? transaction = null)
     {
-        const string query = "UPDATE TrackedLine SET notify = @Notify, min_urgency = @MinUrgency WHERE user_id = @UserId AND line_id = @LineId";
+        const string query = "UPDATE TrackedLine SET notify = @Notify, min_urgency = @MinUrgency, last_notified_at = @LastNotifiedAt WHERE user_id = @UserId AND line_id = @LineId";
         await connection.ExecuteAsync(query, trackedLine, transaction);
     }
 
@@ -34,5 +34,11 @@ public class TrackedLineRepository(IDbConnection connection) : ITrackedLineRepos
     {
         const string query = "DELETE FROM TrackedLine WHERE user_id = @UserId AND line_id = @LineId";
         await connection.ExecuteAsync(query, new { UserId = userId, LineId = lineId }, transaction);
+    }
+
+    public async Task<IEnumerable<TrackedLine>> GetAllAsync()
+    {
+        const string query = "SELECT * FROM TrackedLine";
+        return await connection.QueryAsync<TrackedLine>(query);
     }
 }

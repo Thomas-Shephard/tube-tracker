@@ -36,4 +36,3 @@ public class UserRepository(IDbConnection connection) : IUserRepository
         await connection.ExecuteAsync(query, new { UserId = userId }, transaction);
     }
 }
-

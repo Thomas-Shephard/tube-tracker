@@ -26,7 +26,7 @@ public class TrackedStationRepository(IDbConnection connection) : ITrackedStatio
 
     public async Task UpdateAsync(TrackedStation trackedStation, IDbTransaction? transaction = null)
     {
-        const string query = "UPDATE TrackedStation SET notify = @Notify, notify_accessibility = @NotifyAccessibility, min_urgency = @MinUrgency WHERE user_id = @UserId AND station_id = @StationId";
+        const string query = "UPDATE TrackedStation SET notify = @Notify, notify_accessibility = @NotifyAccessibility, min_urgency = @MinUrgency, last_notified_at = @LastNotifiedAt WHERE user_id = @UserId AND station_id = @StationId";
         await connection.ExecuteAsync(query, trackedStation, transaction);
     }
 
@@ -34,5 +34,11 @@ public class TrackedStationRepository(IDbConnection connection) : ITrackedStatio
     {
         const string query = "DELETE FROM TrackedStation WHERE user_id = @UserId AND station_id = @StationId";
         await connection.ExecuteAsync(query, new { UserId = userId, StationId = stationId }, transaction);
+    }
+
+    public async Task<IEnumerable<TrackedStation>> GetAllAsync()
+    {
+        const string query = "SELECT * FROM TrackedStation";
+        return await connection.QueryAsync<TrackedStation>(query);
     }
 }
