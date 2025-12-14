@@ -31,7 +31,7 @@ public static class Program
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-            options.KnownNetworks.Clear();
+            options.KnownIPNetworks.Clear();
             options.KnownProxies.Clear();
         });
 
@@ -45,7 +45,12 @@ public static class Program
         TokenDenySettings tokenDenySettings = builder.Services.AddAndConfigure<TokenDenySettings>(builder.Configuration, "TokenDenySettings");
 
         // Register Database Connection
-        builder.Services.AddScoped<IDbConnection>(_ => new MySqlConnection(dbSettings.ConnectionString));
+        builder.Services.AddScoped<IDbConnection>(_ =>
+        {
+            MySqlConnection connection = new(dbSettings.ConnectionString);
+            connection.Open();
+            return connection;
+        });
 
         // Register Repositories
         builder.Services.AddScoped<IPasswordResetRepository, PasswordResetRepository>();
