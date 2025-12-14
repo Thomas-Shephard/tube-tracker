@@ -1,7 +1,0 @@
-﻿services:
-  tubetracker.webapp:
-    image: tubetracker.webapp
-    build:
-      context: .
-      dockerfile: TubeTracker.WebApp/Dockerfile
-
