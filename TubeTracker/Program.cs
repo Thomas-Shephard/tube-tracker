@@ -11,6 +11,7 @@ using Scalar.AspNetCore;
 using TubeTracker.API.Extensions;
 using TubeTracker.API.Repositories;
 using TubeTracker.API.Services;
+using TubeTracker.API.Services.Background;
 using TubeTracker.API.Settings;
 
 namespace TubeTracker.API;
@@ -73,6 +74,10 @@ public static class Program
             builder.Services.AddSingleton<ISmtpClientFactory, SmtpClientFactory>();
             builder.Services.AddSingleton<IEmailService, SmtpEmailService>();
         }
+
+        // Register Background Services
+        builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
+        builder.Services.AddHostedService<EmailBackgroundService>();
 
         // Register background services/handlers that use TimeProvider
         builder.Services.AddSingleton(TimeProvider.System); // Register TimeProvider for consistency
