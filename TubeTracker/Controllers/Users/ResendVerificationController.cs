@@ -1,7 +1,7 @@
-using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TubeTracker.API.Extensions;
 using TubeTracker.API.Models.Entities;
 using TubeTracker.API.Repositories;
 using TubeTracker.API.Services.Background;
@@ -14,17 +14,17 @@ namespace TubeTracker.API.Controllers.Users;
 [Tags("User")]
 public class ResendVerificationController(IUserRepository userRepository, IUserVerificationRepository userVerificationRepository, IEmailQueue emailQueue) : ControllerBase
 {
-    [Authorize]
     [HttpPost]
+    [Authorize]
     public async Task<IActionResult> ResendVerification()
     {
-        string? userEmail = User.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
-        if (string.IsNullOrEmpty(userEmail))
+        string? email = User.GetUserEmail();
+        if (email is null)
         {
-            return Unauthorized(new { message = "User email not found in token." });
+            return BadRequest("Token does not contain an email claim.");
         }
 
-        User? user = await userRepository.GetUserByEmailAsync(userEmail);
+        User? user = await userRepository.GetUserByEmailAsync(email);
         if (user is null)
         {
             return NotFound(new { message = "User not found." });

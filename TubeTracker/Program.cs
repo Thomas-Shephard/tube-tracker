@@ -22,6 +22,7 @@ public static class Program
     public static void Main(string[] args)
     {
         DefaultTypeMap.MatchNamesWithUnderscores = true;
+        JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
         WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
@@ -58,6 +59,8 @@ public static class Program
         builder.Services.AddScoped<IUserVerificationRepository, UserVerificationRepository>();
         builder.Services.AddScoped<ITokenDenyRepository, TokenDenyRepository>();
         builder.Services.AddScoped<IUserRepository, UserRepository>();
+        builder.Services.AddScoped<ITrackedLineRepository, TrackedLineRepository>();
+        builder.Services.AddScoped<ITrackedStationRepository, TrackedStationRepository>();
 
         // Register Services
         builder.Services.AddHttpClient<ITflService, TflService>();

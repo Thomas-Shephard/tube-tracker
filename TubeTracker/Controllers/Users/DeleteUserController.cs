@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TubeTracker.API.Extensions;
 using TubeTracker.API.Models.Entities;
 using TubeTracker.API.Repositories;
 using TubeTracker.API.Services;
@@ -10,22 +11,22 @@ namespace TubeTracker.API.Controllers.Users;
 [ApiController]
 [Route("api/user")]
 [Tags("User")]
-[Authorize]
 public class DeleteUserController(IUserRepository userRepository, ITokenDenyService tokenDenyService) : ControllerBase
 {
     [HttpDelete]
+    [Authorize]
     public async Task<IActionResult> DeleteAccount()
     {
-        string? email = User.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
-        if (string.IsNullOrEmpty(email))
+        string? email = User.GetUserEmail();
+        if (email is null)
         {
-            return Unauthorized();
+            return BadRequest("Token does not contain an email claim.");
         }
 
         User? user = await userRepository.GetUserByEmailAsync(email);
         if (user is null)
         {
-            return NotFound();
+            return NotFound(new { message = "User not found." });
         }
 
         string? jti = User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;

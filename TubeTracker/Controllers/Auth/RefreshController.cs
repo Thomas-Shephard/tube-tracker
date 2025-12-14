@@ -1,6 +1,6 @@
-using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TubeTracker.API.Extensions;
 using TubeTracker.API.Models.Entities;
 using TubeTracker.API.Repositories;
 using TubeTracker.API.Services;
@@ -16,27 +16,26 @@ public class RefreshController(IUserRepository userRepository, ITokenDenyService
     [Authorize]
     public async Task<IActionResult> Refresh()
     {
-        string? jti = User.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+        string? jti = User.GetJti();
         if (jti is null)
         {
-            return BadRequest("Token does not contain a JTI claim.");
+            return BadRequest("Token does not contain a jti claim.");
         }
 
-        string? expiresValue = User.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
-        if (!long.TryParse(expiresValue, out long expiresSeconds))
+        DateTime? expiration = User.GetExpirationTime();
+        if (expiration is null)
         {
-            return BadRequest("Token does not contain a valid EXP claim.");
+            return BadRequest("Token does not contain a valid expiration claim.");
         }
 
-        string? email = User.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
-        if (string.IsNullOrEmpty(email))
+        string? email = User.GetUserEmail();
+        if (email is null)
         {
-            return BadRequest("Token does not contain an Email claim.");
+            return BadRequest("Token does not contain an email claim.");
         }
 
         // Invalidate the old token
-        DateTime jwtExpiryTime = DateTimeOffset.FromUnixTimeSeconds(expiresSeconds).UtcDateTime;
-        await tokenDenyService.DenyAsync(jti, jwtExpiryTime);
+        await tokenDenyService.DenyAsync(jti, expiration.Value);
 
         User? user = await userRepository.GetUserByEmailAsync(email);
         if (user is null)

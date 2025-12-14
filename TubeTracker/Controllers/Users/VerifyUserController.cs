@@ -1,6 +1,6 @@
-using System.IdentityModel.Tokens.Jwt;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TubeTracker.API.Extensions;
 using TubeTracker.API.Models.Entities;
 using TubeTracker.API.Repositories;
 using TubeTracker.API.Utils;
@@ -12,8 +12,8 @@ namespace TubeTracker.API.Controllers.Users;
 [Tags("User")]
 public class VerifyUserController(IUserRepository userRepository, IUserVerificationRepository userVerificationRepository) : ControllerBase
 {
-    [Authorize]
     [HttpPost]
+    [Authorize]
     public async Task<IActionResult> Verify([FromBody] string code)
     {
         if (string.IsNullOrEmpty(code) || code.Length != 6)
@@ -21,15 +21,16 @@ public class VerifyUserController(IUserRepository userRepository, IUserVerificat
             return BadRequest(new { message = "A 6 digit verification code is required." });
         }
 
-        if (int.TryParse(User.FindFirst(JwtRegisteredClaimNames.Sub)?.Value, out int userId))
+        int? userId = User.GetUserId();
+        if (userId is null)
         {
-            return Unauthorized(new { message = "User id not found in token."});
+            return Unauthorized("Token does not contain a sub claim.");
         }
 
-        User? user = await userRepository.GetUserByIdAsync(userId);
+        User? user = await userRepository.GetUserByIdAsync(userId.Value);
         if (user is null)
         {
-            return NotFound();
+            return NotFound(new { message = "User not found." });
         }
 
         if (user.IsVerified)
@@ -38,7 +39,8 @@ public class VerifyUserController(IUserRepository userRepository, IUserVerificat
         }
 
         UserVerificationToken? token = await userVerificationRepository.GetTokenByUserIdAsync(user.UserId);
-        if (token is null || token.ExpiresAt <= DateTime.UtcNow || !PasswordUtils.VerifyPassword(code, token.TokenHash))
+        if (token is null || token.ExpiresAt <= DateTime.UtcNow
+                          || !PasswordUtils.VerifyPassword(code, token.TokenHash))
         {
             return BadRequest(new { message = "Invalid or expired verification code." });
         }
