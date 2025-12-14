@@ -1,0 +1,12 @@
+ALTER TABLE User
+    ADD COLUMN is_verified BOOL NOT NULL DEFAULT FALSE;
+
+CREATE TABLE UserVerificationToken
+(
+    token_id   INT AUTO_INCREMENT PRIMARY KEY,
+    user_id    INT          NOT NULL,
+    token_hash VARCHAR(511) NOT NULL,
+    expires_at TIMESTAMP    NOT NULL DEFAULT (CURRENT_TIMESTAMP + INTERVAL 15 MINUTE),
+    created_at TIMESTAMP             DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES User (user_id) ON DELETE CASCADE
+);

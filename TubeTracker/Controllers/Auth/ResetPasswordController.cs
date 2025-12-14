@@ -41,6 +41,7 @@ public class ResetPasswordController(IDbConnection connection, IUserRepository u
 
             string newHashedPassword = PasswordUtils.HashPasswordWithSalt(requestModel.NewPassword);
             user.PasswordHash = newHashedPassword;
+            user.IsVerified = true;
             passwordResetToken.IsUsed = true;
 
             await userRepository.UpdateUserAsync(user, transaction);

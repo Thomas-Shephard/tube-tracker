@@ -55,6 +55,7 @@ public static class Program
 
         // Register Repositories
         builder.Services.AddScoped<IPasswordResetRepository, PasswordResetRepository>();
+        builder.Services.AddScoped<IUserVerificationRepository, UserVerificationRepository>();
         builder.Services.AddScoped<ITokenDenyRepository, TokenDenyRepository>();
         builder.Services.AddScoped<IUserRepository, UserRepository>();
 
