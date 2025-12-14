@@ -26,21 +26,21 @@ public class PasswordResetRepository(IDbConnection connection, IUserRepository u
         }
     }
 
-    public async Task<PasswordResetToken?> GetPasswordResetTokenByEmail(string email)
+    public async Task<PasswordResetToken?> GetPasswordResetTokenByEmail(string email, IDbTransaction? transaction = null)
     {
-        User? user = await userRepository.GetUserByEmailAsync(email);
+        User? user = await userRepository.GetUserByEmailAsync(email, transaction);
         if (user == null)
         {
             return null;
         }
 
         const string query = "SELECT token_id, user_id, token_hash, expiration, is_used, is_revoked, created_at FROM PasswordResetToken WHERE user_id = @UserId AND is_used = FALSE AND is_revoked = FALSE ORDER BY created_at DESC LIMIT 1";
-        return await connection.QuerySingleOrDefaultAsync<PasswordResetToken>(query, new { user.UserId });
+        return await connection.QuerySingleOrDefaultAsync<PasswordResetToken>(query, new { user.UserId }, transaction);
     }
 
-    public async Task UpdatePasswordResetTokenAsync(PasswordResetToken passwordResetToken)
+    public async Task UpdatePasswordResetTokenAsync(PasswordResetToken passwordResetToken, IDbTransaction? transaction = null)
     {
         const string query = "UPDATE PasswordResetToken SET is_used = @IsUsed WHERE token_id = @TokenId";
-        await connection.ExecuteAsync(query, passwordResetToken);
+        await connection.ExecuteAsync(query, passwordResetToken, transaction);
     }
 }

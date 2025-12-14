@@ -25,13 +25,13 @@ public class ResetPasswordController(IDbConnection connection, IUserRepository u
         using IDbTransaction transaction = connection.BeginTransaction();
         try
         {
-            User? user = await userRepository.GetUserByEmailAsync(requestModel.Email);
+            User? user = await userRepository.GetUserByEmailAsync(requestModel.Email, transaction);
             if (user == null)
             {
                 return BadRequest(new { message = FailMessage });
             }
 
-            PasswordResetToken? passwordResetToken = await passwordResetRepository.GetPasswordResetTokenByEmail(requestModel.Email);
+            PasswordResetToken? passwordResetToken = await passwordResetRepository.GetPasswordResetTokenByEmail(requestModel.Email, transaction);
 
             if (passwordResetToken is null || passwordResetToken.IsUsed || passwordResetToken.IsRevoked || passwordResetToken.Expiration <= DateTime.UtcNow
                 || !PasswordUtils.VerifyPassword(requestModel.Token, passwordResetToken.TokenHash))
@@ -43,8 +43,8 @@ public class ResetPasswordController(IDbConnection connection, IUserRepository u
             user.PasswordHash = newHashedPassword;
             passwordResetToken.IsUsed = true;
 
-            await userRepository.UpdateUserAsync(user);
-            await passwordResetRepository.UpdatePasswordResetTokenAsync(passwordResetToken);
+            await userRepository.UpdateUserAsync(user, transaction);
+            await passwordResetRepository.UpdatePasswordResetTokenAsync(passwordResetToken, transaction);
 
             transaction.Commit();
             return Ok(new { message = "Password has been reset successfully." });
@@ -52,7 +52,7 @@ public class ResetPasswordController(IDbConnection connection, IUserRepository u
         catch (Exception)
         {
             transaction.Rollback();
-            return StatusCode(500, new { message = "An error occurred while resetting the password." });
+            throw;
         }
     }
 }
