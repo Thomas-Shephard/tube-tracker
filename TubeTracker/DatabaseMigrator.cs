@@ -8,8 +8,6 @@ public static class DatabaseMigrator
 {
     public static void ApplyMigrations(string connectionString)
     {
-        EnsureDatabase.For.MySqlDatabase(connectionString);
-
         UpgradeEngine migrator = DeployChanges.To
             .MySqlDatabase(connectionString)
             .WithScriptsEmbeddedInAssembly(Assembly.GetExecutingAssembly())
