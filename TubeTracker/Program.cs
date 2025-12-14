@@ -3,6 +3,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 using Dapper;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using MySqlConnector;
@@ -25,6 +26,14 @@ public static class Program
 
         // Load environment variables into configuration
         builder.Configuration.AddEnvironmentVariables();
+
+        // Configure Forwarded Headers for Reverse Proxy (Nginx/Docker)
+        builder.Services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+            options.KnownNetworks.Clear();
+            options.KnownProxies.Clear();
+        });
 
         // Add standard web services
         builder.Services.AddControllers();
@@ -99,6 +108,8 @@ public static class Program
 
 
         WebApplication app = builder.Build();
+
+        app.UseForwardedHeaders();
 
         DatabaseMigrator.ApplyMigrations(dbSettings.ConnectionString);
 
