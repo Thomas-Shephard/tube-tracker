@@ -5,7 +5,6 @@ namespace TubeTracker.API.Repositories;
 public interface IStationRepository
 {
     Task<Station?> GetByIdAsync(int stationId);
-    Task<IEnumerable<Station>> GetByIdsAsync(IEnumerable<int> stationIds);
     Task<Station?> GetByTflIdAsync(string tflId);
     Task<Station?> GetByCommonNameAsync(string commonName);
     Task<IEnumerable<Station>> GetAllAsync();

@@ -6,5 +6,4 @@ public class Line
     public required string TflId { get; init; }
     public required string Name { get; set; }
     public required string ModeName { get; set; }
-    public string? Colour { get; set; }
 }

@@ -37,12 +37,6 @@ public class TrackedLineRepository(IDbConnection connection) : ITrackedLineRepos
         await connection.ExecuteAsync(query, new { UserId = userId, LineId = lineId }, transaction);
     }
 
-    public async Task<IEnumerable<TrackedLine>> GetAllAsync()
-    {
-        const string query = "SELECT * FROM TrackedLine";
-        return await connection.QueryAsync<TrackedLine>(query);
-    }
-
     public async Task<IEnumerable<LineNotificationModel>> GetPendingNotificationsAsync()
     {
         const string query = """

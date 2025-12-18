@@ -12,12 +12,6 @@ public class StationRepository(IDbConnection connection) : IStationRepository
         return await connection.QuerySingleOrDefaultAsync<Station>(query, new { StationId = stationId });
     }
 
-    public async Task<IEnumerable<Station>> GetByIdsAsync(IEnumerable<int> stationIds)
-    {
-        const string query = "SELECT * FROM Station WHERE station_id IN @StationIds";
-        return await connection.QueryAsync<Station>(query, new { StationIds = stationIds });
-    }
-
     public async Task<Station?> GetByTflIdAsync(string tflId)
     {
         const string query = "SELECT * FROM Station WHERE tfl_id = @TflId";

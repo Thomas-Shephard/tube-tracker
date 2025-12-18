@@ -1,0 +1,1 @@
+ALTER TABLE Line DROP COLUMN colour;

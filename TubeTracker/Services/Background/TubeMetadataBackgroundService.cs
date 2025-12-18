@@ -39,14 +39,12 @@ public class TubeMetadataBackgroundService(IServiceScopeFactory serviceScopeFact
 
                 if (existingLine is null)
                 {
-                    Line newLine = new()
-                    {
-                        TflId = tflLine.Id,
-                        Name = tflLine.Name,
-                        ModeName = tflLine.ModeName,
-                        Colour = null
-                    };
-                    await lineRepository.AddAsync(newLine);
+                        await lineRepository.AddAsync(new Line
+                        {
+                            TflId = tflLine.Id,
+                            Name = tflLine.Name,
+                            ModeName = tflLine.ModeName
+                        });
                     linesAdded++;
                 }
                 else

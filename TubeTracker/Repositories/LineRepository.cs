@@ -12,12 +12,6 @@ public class LineRepository(IDbConnection connection) : ILineRepository
         return await connection.QuerySingleOrDefaultAsync<Line>(query, new { LineId = lineId });
     }
 
-    public async Task<IEnumerable<Line>> GetByIdsAsync(IEnumerable<int> lineIds)
-    {
-        const string query = "SELECT * FROM Line WHERE line_id IN @LineIds";
-        return await connection.QueryAsync<Line>(query, new { LineIds = lineIds });
-    }
-
     public async Task<Line?> GetByTflIdAsync(string tflId)
     {
         const string query = "SELECT * FROM Line WHERE tfl_id = @TflId";
@@ -32,13 +26,13 @@ public class LineRepository(IDbConnection connection) : ILineRepository
 
     public async Task AddAsync(Line line)
     {
-        const string query = "INSERT INTO Line (tfl_id, name, mode_name, colour) VALUES (@TflId, @Name, @ModeName, @Colour)";
+        const string query = "INSERT INTO Line (tfl_id, name, mode_name) VALUES (@TflId, @Name, @ModeName)";
         await connection.ExecuteAsync(query, line);
     }
 
     public async Task UpdateAsync(Line line)
     {
-        const string query = "UPDATE Line SET tfl_id = @TflId, name = @Name, mode_name = @ModeName, colour = @Colour WHERE line_id = @LineId";
+        const string query = "UPDATE Line SET tfl_id = @TflId, name = @Name, mode_name = @ModeName WHERE line_id = @LineId";
         await connection.ExecuteAsync(query, line);
     }
 

@@ -39,7 +39,6 @@ public class GetTrackedStatusesController(
                 line.LineId,
                 line.Name,
                 line.TflId,
-                line.Colour,
                 trackedLine.Notify,
                 trackedLine.MinUrgency,
                 Statuses = statuses

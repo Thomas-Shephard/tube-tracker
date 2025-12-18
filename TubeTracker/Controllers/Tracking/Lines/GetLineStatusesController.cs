@@ -23,7 +23,6 @@ public class GetLineStatusesController(ILineRepository lineRepository, ILineStat
                 line.LineId,
                 line.Name,
                 line.TflId,
-                line.Colour,
                 Statuses = activeStatuses
             });
         }
