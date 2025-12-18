@@ -59,12 +59,14 @@ public class TrackedLineRepository(IDbConnection connection) : ITrackedLineRepos
                              JOIN Line l ON tl.line_id = l.line_id
                              JOIN LineStatusHistory lsh ON l.line_id = lsh.line_id
                              JOIN StatusSeverity ss ON lsh.status_severity = ss.severity_level
+                             LEFT JOIN LineStatusHistory lsh_prev ON tl.max_notified_history_id = lsh_prev.history_id
+                             LEFT JOIN StatusSeverity ss_prev ON lsh_prev.status_severity = ss_prev.severity_level
                              WHERE tl.notify = 1
                                AND u.is_verified = 1
                                AND lsh.last_reported_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
-                               AND (max_notified_history_id IS NULL OR lsh.history_id > max_notified_history_id)
+                               AND (tl.max_notified_history_id IS NULL OR lsh.history_id > tl.max_notified_history_id)
                                AND lsh.first_reported_at > IFNULL(tl.last_notified_at, tl.created_at)
-                               AND ss.urgency >= tl.min_urgency
+                               AND (ss.urgency >= tl.min_urgency OR (ss_prev.urgency IS NOT NULL AND ss.urgency < ss_prev.urgency))
                              """;
 
         return await connection.QueryAsync<LineNotificationModel>(query);
