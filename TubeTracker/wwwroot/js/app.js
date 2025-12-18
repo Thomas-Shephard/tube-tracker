@@ -145,8 +145,21 @@ async function loadTrackedStatus() {
             const data = await response.json();
             resultElement.innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
             
-            lineList.innerHTML = data.lines.length ? '' : '<div class="col-12 text-muted">You are not tracking any lines.</div>';
-            stationList.innerHTML = data.stations.length ? '' : '<div class="col-12 text-muted">You are not tracking any stations.</div>';
+            const emptyLineHtml = `
+                <div class="col-12 text-center py-4">
+                    <p class="text-muted">You are not tracking any lines.</p>
+                    <a href="/tracking.html#lines" class="btn btn-outline-primary btn-sm">Track your first line</a>
+                </div>
+            `;
+            const emptyStationHtml = `
+                <div class="col-12 text-center py-4">
+                    <p class="text-muted">You are not tracking any stations.</p>
+                    <a href="/tracking.html#stations" class="btn btn-outline-primary btn-sm">Find stations to track</a>
+                </div>
+            `;
+
+            lineList.innerHTML = data.lines.length ? '' : emptyLineHtml;
+            stationList.innerHTML = data.stations.length ? '' : emptyStationHtml;
 
             const sortedLines = data.lines.map(line => {
                 const activeStatuses = line.statuses || [];

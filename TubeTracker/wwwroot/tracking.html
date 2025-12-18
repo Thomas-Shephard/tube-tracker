@@ -127,6 +127,16 @@
                 document.getElementById('unverified-prompt').classList.remove('d-none');
             } else {
                 init();
+                
+                // Handle deep linking to tabs
+                const hash = window.location.hash;
+                if (hash === '#stations') {
+                    const stationsTab = document.getElementById('stations-tab');
+                    if (stationsTab) stationsTab.click();
+                } else if (hash === '#lines') {
+                    const linesTab = document.getElementById('lines-tab');
+                    if (linesTab) linesTab.click();
+                }
             }
         });
 
