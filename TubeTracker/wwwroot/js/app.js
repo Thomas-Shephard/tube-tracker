@@ -56,7 +56,15 @@ function updateNavbar() {
     }
 }
 
-function logout() {
+async function logout() {
+    try {
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: getAuthHeader()
+        });
+    } catch (e) {
+        console.error('Logout error:', e);
+    }
     localStorage.removeItem('token');
     window.location.href = '/';
 }
@@ -128,7 +136,19 @@ async function loadTrackedStatus() {
             lineList.innerHTML = data.lines.length ? '' : '<div class="col-12 text-muted">You are not tracking any lines.</div>';
             stationList.innerHTML = data.stations.length ? '' : '<div class="col-12 text-muted">You are not tracking any stations.</div>';
 
-            data.lines.forEach(line => {
+            const sortedLines = data.lines.map(line => {
+                const activeStatuses = line.statuses || [];
+                const maxUrgency = activeStatuses.length ? Math.max(...activeStatuses.map(s => s.severity.urgency)) : 0;
+                // MinUrgency defaults to 2 (Severe) if not set, or we can use the value from the object
+                const isFlagged = maxUrgency >= (line.minUrgency ?? 2) && maxUrgency > 0;
+                return { ...line, isFlagged, maxUrgency };
+            }).sort((a, b) => {
+                if (a.isFlagged && !b.isFlagged) return -1;
+                if (!a.isFlagged && b.isFlagged) return 1;
+                return (b.maxUrgency - a.maxUrgency) || a.name.localeCompare(b.name);
+            });
+
+            sortedLines.forEach(line => {
                 const activeStatuses = line.statuses || [];
                 const minSeverityId = activeStatuses.length ? Math.min(...activeStatuses.map(s => s.severity.severityLevel)) : 10;
                 const severityDescription = activeStatuses.length ? activeStatuses.map(s => s.severity.description).join(" & ") : "Good Service";
@@ -137,7 +157,7 @@ async function loadTrackedStatus() {
                 let badgeClass = minSeverityId < 10 ? (minSeverityId <= 5 ? "bg-danger" : "bg-warning text-dark") : "bg-success";
                 let statusClass = minSeverityId < 10 ? (minSeverityId <= 5 ? "status-severe" : "status-minor") : "status-good";
                 
-                lineList.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons));
+                lineList.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged));
             });
 
             data.stations.forEach(station => {
@@ -154,13 +174,14 @@ async function loadTrackedStatus() {
     } catch (e) { console.error(e); }
 }
 
-function createCardHtml(name, severity, badgeClass, statusClass, reasons) {
+function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlagged = false) {
+    const bell = isFlagged ? '<i class="bi bi-bell-fill text-warning me-2" title="Matches your notification settings"></i>' : '';
     return `
         <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm line-card ${statusClass}">
+            <div class="card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'border-warning shadow' : ''}">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h5 class="card-title fw-bold mb-0">${name}</h5>
+                        <h5 class="card-title fw-bold mb-0">${bell}${name}</h5>
                         <span class="badge ${badgeClass}">${severity}</span>
                     </div>
                     ${reasons.map(r => `<p class="card-text small text-muted mt-2 mb-0">${r}</p>`).join('')}
@@ -172,6 +193,10 @@ function createCardHtml(name, severity, badgeClass, statusClass, reasons) {
 
 // Global scope for onclick
 window.logout = logout;
+window.isLoggedIn = isLoggedIn;
+window.isVerified = isVerified;
+window.getAuthHeader = getAuthHeader;
+window.updateNavbar = updateNavbar;
 
 document.addEventListener('DOMContentLoaded', () => {
     updateNavbar();
