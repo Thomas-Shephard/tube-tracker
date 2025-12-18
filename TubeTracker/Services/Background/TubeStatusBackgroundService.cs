@@ -74,7 +74,7 @@ public class TubeStatusBackgroundService(
 
                 foreach (TflStationDisruption disruption in stationDisruptions)
                 {
-                    string tflId = string.IsNullOrEmpty(disruption.StationAtcoCode)
+                    string tflId = !string.IsNullOrEmpty(disruption.StationAtcoCode)
                         ? disruption.StationAtcoCode
                         : disruption.AtcoCode;
 

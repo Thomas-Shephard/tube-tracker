@@ -72,7 +72,7 @@ public class TrackedLineRepository(IDbConnection connection) : ITrackedLineRepos
 
     public async Task UpdateLastNotifiedAsync(int trackedLineId, int historyId, DateTime lastNotifiedAt)
     {
-        const string query = "UPDATE TrackedLine SET last_notified_at = @LastNotifiedAt, last_notified_history_id = @HistoryId WHERE tracked_line_id = @TrackedLineId";
+        const string query = "UPDATE TrackedLine SET last_notified_at = @LastNotifiedAt, max_notified_history_id = @HistoryId WHERE tracked_line_id = @TrackedLineId";
         await connection.ExecuteAsync(query, new { TrackedLineId = trackedLineId, HistoryId = historyId, LastNotifiedAt = lastNotifiedAt });
     }
 }
