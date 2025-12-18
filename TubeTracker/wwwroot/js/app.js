@@ -237,10 +237,40 @@ window.isVerified = isVerified;
 window.getAuthHeader = getAuthHeader;
 window.updateNavbar = updateNavbar;
 
+async function refreshTokenIfOld() {
+    const payload = getDecodedToken();
+    if (!payload || !payload.iat) return;
+
+    // Refresh if the token is older than 3 days
+    const threeDaysInSeconds = 3 * 24 * 60 * 60;
+    const now = Math.floor(Date.now() / 1000);
+    
+    if (now - payload.iat > threeDaysInSeconds) {
+        console.log('Token is old, refreshing session...');
+        try {
+            const response = await fetch('/api/auth/refresh', {
+                method: 'POST',
+                headers: getAuthHeader()
+            });
+            if (response.ok) {
+                const data = await response.json();
+                const newToken = data.token || data.Token;
+                if (newToken) {
+                    localStorage.setItem('token', newToken);
+                    console.log('Session refreshed successfully.');
+                }
+            }
+        } catch (e) {
+            console.error('Failed to refresh session:', e);
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     updateNavbar();
     
     if (isLoggedIn()) {
+        refreshTokenIfOld();
         const banner = document.getElementById('verification-banner');
         if (banner && !isVerified()) {
             banner.classList.remove('d-none');
