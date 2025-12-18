@@ -1,42 +1,51 @@
 async function loadTubeStatus() {
-    const container = document.getElementById('status-container');
     const resultElement = document.getElementById('api-result');
-    
-    resultElement.innerText = "Loading tube status...";
-    resultElement.className = "text-muted";
-    
-    // Clear previous results except the button/message area if desired, 
-    // but here we will append a list below.
     const listContainer = document.getElementById('tube-list');
-    listContainer.innerHTML = ''; // clear list
+    
+    resultElement.innerText = "Fetching latest data...";
+    resultElement.className = "text-muted";
 
     try {
-        const response = await fetch('/api/tube/status');
+        const response = await fetch('/api/status/lines');
         if (response.ok) {
             const lines = await response.json();
             
-            resultElement.innerText = `Updated: ${new Date().toLocaleTimeString()}`;
-            resultElement.className = "text-success mb-3";
+            resultElement.innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
+            resultElement.className = "text-success mb-0";
+            
+            listContainer.innerHTML = ''; // clear list
 
             lines.forEach(line => {
-                const status = line.lineStatuses[0];
-                const severity = status.statusSeverityDescription;
+                // The API returns an array of statuses, we take the most severe one or just the first one if it's active
+                // For simplicity, we'll look at the first status in the 'statuses' array
+                const status = (line.statuses && line.statuses.length > 0) 
+                    ? line.statuses[0] 
+                    : null;
                 
-                // Determine color based on severity
+                const severity = status ? status.severity.description : "Good Service";
+                const severityId = status ? status.severity.severityLevel : 10;
+                
+                // Determine CSS class based on severityId (TfL standard: 10 is Good Service)
+                let statusClass = "status-good";
                 let badgeClass = "bg-success";
-                if (severity !== "Good Service") {
+                
+                if (severityId < 10 && severityId > 5) {
+                    statusClass = "status-minor";
                     badgeClass = "bg-warning text-dark";
-                }
-                if (severity.includes("Closed") || severity.includes("Suspended")) {
+                } else if (severityId <= 5) {
+                    statusClass = "status-severe";
                     badgeClass = "bg-danger";
                 }
 
                 const cardHtml = `
-                    <div class="col-md-6 col-lg-4 mb-3">
-                        <div class="card shadow-sm">
-                            <div class="card-body d-flex justify-content-between align-items-center">
-                                <h5 class="card-title mb-0">${line.name}</h5>
-                                <span class="badge ${badgeClass}">${severity}</span>
+                    <div class="col-md-6 col-lg-4">
+                        <div class="card h-100 shadow-sm line-card ${statusClass}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h5 class="card-title fw-bold mb-0">${line.name}</h5>
+                                    <span class="badge ${badgeClass}">${severity}</span>
+                                </div>
+                                ${status && status.reason ? `<p class="card-text small text-muted mt-2">${status.reason}</p>` : ''}
                             </div>
                         </div>
                     </div>
@@ -47,10 +56,13 @@ async function loadTubeStatus() {
         } else {
             resultElement.innerText = "Error loading data: " + response.statusText;
             resultElement.className = "text-danger";
+            listContainer.innerHTML = `<div class="col-12"><div class="alert alert-danger">Failed to load tube status. Please try again later.</div></div>`;
         }
     } catch (error) {
-        resultElement.innerText = "Fetch error: " + error;
+        console.error("Fetch error:", error);
+        resultElement.innerText = "Connection error. Please check your internet.";
         resultElement.className = "text-danger";
+        listContainer.innerHTML = `<div class="col-12"><div class="alert alert-danger">An error occurred while connecting to the server.</div></div>`;
     }
 }
 
