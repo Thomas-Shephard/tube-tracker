@@ -35,6 +35,11 @@ public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactor
             IEnumerable<Line> dbLines = await lineRepository.GetAllAsync();
             Dictionary<string, int> lineMap = dbLines.ToDictionary(l => l.TflId, l => l.LineId);
 
+            DateTime? lastLineReport = await lineHistoryRepository.GetLastReportTimeAsync();
+            DateTime lineThreshold = lastLineReport.HasValue && (DateTime.UtcNow - lastLineReport.Value).TotalMinutes < 30
+                ? lastLineReport.Value.AddSeconds(-30)
+                : DateTime.UtcNow.AddMinutes(-settings.DeduplicationThresholdMinutes);
+
             foreach (TflLine tflLine in tflLines)
             {
                 if (!lineMap.TryGetValue(tflLine.Id, out int lineId))
@@ -45,11 +50,15 @@ public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactor
 
                 foreach (LineStatus status in tflLine.LineStatuses)
                 {
-                    await lineHistoryRepository.UpsertAsync(lineId, status.StatusSeverity);
+                    await lineHistoryRepository.UpsertAsync(lineId, status.StatusSeverity, lineThreshold);
                 }
             }
 
             List<TflStationDisruption> stationDisruptions = await tflService.GetStationDisruptionsAsync();
+            DateTime? lastStationReport = await stationHistoryRepository.GetLastReportTimeAsync();
+            DateTime stationThreshold = lastStationReport.HasValue && (DateTime.UtcNow - lastStationReport.Value).TotalMinutes < 30
+                ? lastStationReport.Value.AddSeconds(-30)
+                : DateTime.UtcNow.AddMinutes(-settings.DeduplicationThresholdMinutes);
 
             if (stationDisruptions.Count != 0)
             {
@@ -64,7 +73,7 @@ public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactor
 
                     if (!string.IsNullOrEmpty(tflId) && stationMap.TryGetValue(tflId, out int stationId))
                     {
-                        await stationHistoryRepository.UpsertAsync(stationId, disruption.Description);
+                        await stationHistoryRepository.UpsertAsync(stationId, disruption.Description, stationThreshold);
                     }
                     else
                     {
