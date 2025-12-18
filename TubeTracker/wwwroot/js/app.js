@@ -175,7 +175,7 @@ async function loadTrackedStatus() {
 }
 
 function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlagged = false) {
-    const bell = isFlagged ? '<i class="bi bi-bell-fill text-warning me-2" title="Matches your notification settings"></i>' : '';
+    const bell = isFlagged ? '<i class="bi bi-bell-fill me-2" title="Matches your notification settings"></i>' : '';
     return `
         <div class="col-md-6 col-lg-4">
             <div class="card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'flagged' : ''}">
