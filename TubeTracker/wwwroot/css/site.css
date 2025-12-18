@@ -27,3 +27,12 @@ body {
 #tube-list {
     min-height: 200px;
 }
+
+.navbar .btn-outline-light:hover {
+    color: #212529 !important;
+}
+
+.navbar .btn-primary:hover {
+    background-color: #0056b3;
+    border-color: #004a99;
+}
