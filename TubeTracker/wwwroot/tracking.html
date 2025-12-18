@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Tracking - Tube Tracker</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/site.css">
+    <style>
+        .list-group-item {
+            transition: background-color 0.2s;
+        }
+        .tracking-active {
+            background-color: #e7f1ff;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">Tube Tracker</a>
+            <div class="collapse navbar-collapse">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item"><a class="nav-link" href="/">Dashboard</a></li>
+                    <li class="nav-item"><a class="nav-link" href="/account.html">Account</a></li>
+                    <li class="nav-item"><a class="nav-link" href="#" onclick="logout()">Logout</a></li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <h2 class="mb-4">Manage Your Tracking</h2>
+
+        <ul class="nav nav-tabs mb-4" id="trackingTabs" role="tablist">
+            <li class="nav-item">
+                <button class="nav-link active" id="lines-tab" data-bs-toggle="tab" data-bs-target="#lines-content">Lines</button>
+            </li>
+            <li class="nav-item">
+                <button class="nav-link" id="stations-tab" data-bs-toggle="tab" data-bs-target="#stations-content">Stations</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="trackingTabsContent">
+            <!-- Lines Tab -->
+            <div class="tab-pane fade show active" id="lines-content">
+                <div class="row" id="lines-list">
+                    <div class="col-12 text-center py-5">
+                        <div class="spinner-border text-primary"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stations Tab -->
+            <div class="tab-pane fade" id="stations-content">
+                <div class="mb-3">
+                    <input type="text" id="station-search" class="form-control" placeholder="Search stations...">
+                </div>
+                <div class="row" id="stations-list">
+                    <div class="col-12 text-center py-5">
+                        <div class="spinner-border text-primary"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        if (!isLoggedIn()) window.location.href = '/login.html';
+
+        let allLines = [];
+        let trackedLines = [];
+        let allStations = [];
+        let trackedStations = [];
+
+        async function init() {
+            try {
+                const [linesRes, trackedLinesRes, stationsRes, trackedStationsRes] = await Promise.all([
+                    fetch('/api/lines'),
+                    fetch('/api/tracking/lines', { headers: getAuthHeader() }),
+                    fetch('/api/stations'),
+                    fetch('/api/tracking/stations', { headers: getAuthHeader() })
+                ]);
+
+                allLines = await linesRes.json();
+                trackedLines = await trackedLinesRes.json();
+                allStations = await stationsRes.json();
+                trackedStations = await trackedStationsRes.json();
+
+                renderLines();
+                renderStations();
+            } catch (err) { console.error("Init error:", err); }
+        }
+
+        function renderLines() {
+            const container = document.getElementById('lines-list');
+            container.innerHTML = '';
+            
+            allLines.sort((a,b) => a.name.localeCompare(b.name)).forEach(line => {
+                const tracked = trackedLines.find(tl => tl.lineId === line.lineId);
+                const col = document.createElement('div');
+                col.className = 'col-md-6 col-lg-4 mb-3';
+                col.innerHTML = `
+                    <div class="card h-100 ${tracked ? 'tracking-active shadow-sm border-primary' : ''}">
+                        <div class="card-body d-flex justify-content-between align-items-center">
+                            <div>
+                                <h5 class="mb-0">${line.name}</h5>
+                                ${tracked ? '<span class="badge bg-primary">Tracking</span>' : ''}
+                            </div>
+                            <button class="btn btn-sm ${tracked ? 'btn-danger' : 'btn-outline-primary'}" 
+                                onclick="toggleLine(${line.lineId}, ${!!tracked})">
+                                ${tracked ? 'Untrack' : 'Track'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(col);
+            });
+        }
+
+        async function toggleLine(lineId, currentlyTracked) {
+            const method = currentlyTracked ? 'DELETE' : 'POST';
+            const url = `/api/tracking/lines${currentlyTracked ? '/' + lineId : ''}`;
+            
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+                    body: currentlyTracked ? null : JSON.stringify({ lineId, notify: true, minUrgency: 2 })
+                });
+                if (res.ok) {
+                    const updatedTracked = await fetch('/api/tracking/lines', { headers: getAuthHeader() });
+                    trackedLines = await updatedTracked.json();
+                    renderLines();
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        function renderStations() {
+            const container = document.getElementById('stations-list');
+            const search = document.getElementById('station-search').value.toLowerCase();
+            container.innerHTML = '';
+
+            const filtered = allStations
+                .filter(s => s.commonName.toLowerCase().includes(search))
+                .sort((a,b) => a.commonName.localeCompare(b.commonName))
+                .slice(0, 50); // Limit display for performance
+
+            filtered.forEach(station => {
+                const tracked = trackedStations.find(ts => ts.stationId === station.stationId);
+                const col = document.createElement('div');
+                col.className = 'col-md-6 col-lg-4 mb-3';
+                col.innerHTML = `
+                    <div class="card h-100 ${tracked ? 'tracking-active shadow-sm border-primary' : ''}">
+                        <div class="card-body d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="mb-0">${station.commonName}</h6>
+                                ${tracked ? '<span class="badge bg-primary">Tracking</span>' : ''}
+                            </div>
+                            <button class="btn btn-sm ${tracked ? 'btn-danger' : 'btn-outline-primary'}" 
+                                onclick="toggleStation(${station.stationId}, ${!!tracked})">
+                                ${tracked ? 'Untrack' : 'Track'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(col);
+            });
+        }
+
+        async function toggleStation(stationId, currentlyTracked) {
+            const method = currentlyTracked ? 'DELETE' : 'POST';
+            const url = `/api/tracking/stations${currentlyTracked ? '/' + stationId : ''}`;
+            
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+                    body: currentlyTracked ? null : JSON.stringify({ stationId, notify: true })
+                });
+                if (res.ok) {
+                    const updatedTracked = await fetch('/api/tracking/stations', { headers: getAuthHeader() });
+                    trackedStations = await updatedTracked.json();
+                    renderStations();
+                }
+            } catch (err) { console.error(err); }
+        }
+
+        document.getElementById('station-search').addEventListener('input', renderStations);
+        
+        init();
+    </script>
+</body>
+</html>
