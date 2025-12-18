@@ -67,25 +67,45 @@ public class TubeStatusBackgroundService(
                 ? lastStationReport.Value.AddSeconds(-30)
                 : DateTime.UtcNow.AddMinutes(-settings.DeduplicationThresholdMinutes);
 
-            if (stationDisruptions.Count != 0)
+            IEnumerable<Station> dbStations = await stationRepository.GetAllAsync();
+            Dictionary<string, int> stationMap = dbStations.ToDictionary(station => station.TflId, station => station.StationId);
+
+            // Group disruptions by station ID to handle multiple disruptions and identify cleared stations
+            Dictionary<int, List<string>> disruptionsByStation = new();
+            foreach (TflStationDisruption disruption in stationDisruptions)
             {
-                IEnumerable<Station> dbStations = await stationRepository.GetAllAsync();
-                Dictionary<string, int> stationMap = dbStations.ToDictionary(station => station.TflId, station => station.StationId);
+                string tflId = !string.IsNullOrEmpty(disruption.StationAtcoCode)
+                    ? disruption.StationAtcoCode
+                    : disruption.AtcoCode;
 
-                foreach (TflStationDisruption disruption in stationDisruptions)
+                if (!string.IsNullOrEmpty(tflId) && stationMap.TryGetValue(tflId, out int stationId))
                 {
-                    string tflId = !string.IsNullOrEmpty(disruption.StationAtcoCode)
-                        ? disruption.StationAtcoCode
-                        : disruption.AtcoCode;
+                    if (!disruptionsByStation.TryGetValue(stationId, out List<string>? descriptions))
+                    {
+                        descriptions = [];
+                        disruptionsByStation[stationId] = descriptions;
+                    }
+                    descriptions.Add(disruption.Description);
+                }
+                else
+                {
+                    logger.LogWarning("Station disruption for {TflId} ({CommonName}) not found in database.", tflId, disruption.CommonName);
+                }
+            }
 
-                    if (!string.IsNullOrEmpty(tflId) && stationMap.TryGetValue(tflId, out int stationId))
+            foreach (Station station in dbStations)
+            {
+                if (disruptionsByStation.TryGetValue(station.StationId, out List<string>? descriptions))
+                {
+                    foreach (string description in descriptions)
                     {
-                        await stationHistoryRepository.UpsertAsync(stationId, disruption.Description, stationThreshold);
+                        await stationHistoryRepository.UpsertAsync(station.StationId, description, stationThreshold);
                     }
-                    else
-                    {
-                        logger.LogWarning("Station disruption for {TflId} ({CommonName}) not found in database.", tflId, disruption.CommonName);
-                    }
+                }
+                else
+                {
+                    // No active disruptions, so record "No Issues"
+                    await stationHistoryRepository.UpsertAsync(station.StationId, "No Issues", stationThreshold);
                 }
             }
             logger.LogInformation("Tube status update completed.");

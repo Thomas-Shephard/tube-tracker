@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TubeTracker.API.Attributes;
 using TubeTracker.API.Extensions;
 using TubeTracker.API.Models.Entities;
 using TubeTracker.API.Repositories;
@@ -9,6 +10,7 @@ namespace TubeTracker.API.Controllers.Tracking.Stations;
 [ApiController]
 [Route("api/tracking/stations")]
 [Tags("Tracking")]
+[RequireVerifiedAccount]
 public class GetTrackedStationsController(ITrackedStationRepository trackedStationRepository, ILogger<GetTrackedStationsController> logger) : ControllerBase
 {
     [HttpGet]

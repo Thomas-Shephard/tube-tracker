@@ -22,6 +22,7 @@ public class TokenService(JwtSettings jwtSettings, ILogger<TokenService> logger)
             new(JwtRegisteredClaimNames.Email, user.Email),
             new(JwtRegisteredClaimNames.Name, user.Name),
             new(JwtRegisteredClaimNames.Jti, jti),
+            new("is_verified", user.IsVerified.ToString().ToLower())
         ];
 
         DateTime now = DateTime.UtcNow;

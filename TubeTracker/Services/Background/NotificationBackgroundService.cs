@@ -54,7 +54,7 @@ public class NotificationBackgroundService(IServiceScopeFactory serviceScopeFact
 
                 StringBuilder body = new();
                 body.Append($"Hi {userName},<br/><br/>");
-                body.Append("There are new disruptions on your tracked lines and stations:<br/><br/>");
+                body.Append("There are new status updates for your tracked lines and stations:<br/><br/>");
 
                 if (userLines.Count > 0)
                 {
@@ -78,8 +78,8 @@ public class NotificationBackgroundService(IServiceScopeFactory serviceScopeFact
 
                 await emailQueue.QueueBackgroundEmailAsync(new EmailMessage(
                     email,
-                    "TubeTracker: New Disruption Alerts",
-                    "New Alerts",
+                    "TubeTracker: New Status Updates",
+                    "Status Updates",
                     body.ToString()
                 ));
 
