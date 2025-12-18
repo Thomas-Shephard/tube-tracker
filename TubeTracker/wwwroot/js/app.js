@@ -146,15 +146,19 @@ async function loadTrackedStatus() {
             resultElement.innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
             
             const emptyLineHtml = `
-                <div class="col-12 text-center py-4">
-                    <p class="text-muted">You are not tracking any lines.</p>
-                    <a href="/tracking.html#lines" class="btn btn-outline-primary btn-sm">Track your first line</a>
+                <div class="col-12">
+                    <div class="p-4 bg-light rounded-4 border border-dashed text-start">
+                        <p class="text-muted mb-3">You are not tracking any lines yet. Start tracking to receive personalized updates and notifications.</p>
+                        <a href="/tracking.html#lines" class="btn btn-primary btn-sm px-4">Track your first line</a>
+                    </div>
                 </div>
             `;
             const emptyStationHtml = `
-                <div class="col-12 text-center py-4">
-                    <p class="text-muted">You are not tracking any stations.</p>
-                    <a href="/tracking.html#stations" class="btn btn-outline-primary btn-sm">Find stations to track</a>
+                <div class="col-12">
+                    <div class="p-4 bg-light rounded-4 border border-dashed text-start">
+                        <p class="text-muted mb-3">You are not tracking any stations yet. Monitor specific stations for disruptions and lift closures.</p>
+                        <a href="/tracking.html#stations" class="btn btn-primary btn-sm px-4">Find stations to track</a>
+                    </div>
                 </div>
             `;
 
