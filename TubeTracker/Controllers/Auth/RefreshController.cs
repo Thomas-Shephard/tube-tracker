@@ -34,20 +34,20 @@ public class RefreshController(
             return BadRequest("Token does not contain a valid expiration claim.");
         }
 
-        string? email = User.GetUserEmail();
-        if (email is null)
+        int? userId = User.GetUserId();
+        if (userId is null)
         {
-            logger.LogWarning("Refresh attempt with missing email claim for JTI: {Jti}", jti);
-            return BadRequest("Token does not contain an email claim.");
+            logger.LogWarning("Refresh attempt with missing sub claim for JTI: {Jti}", jti);
+            return BadRequest("Token does not contain a sub claim.");
         }
 
         // Invalidate the old token
         await tokenDenyService.DenyAsync(jti, expiration.Value);
 
-        User? user = await userRepository.GetUserByEmailAsync(email);
+        User? user = await userRepository.GetUserByIdAsync(userId.Value);
         if (user is null)
         {
-            logger.LogWarning("Refresh attempt for non-existent user: {Email}", email);
+            logger.LogWarning("Refresh attempt for non-existent user ID: {UserId}", userId);
             return Unauthorized();
         }
 

@@ -21,17 +21,17 @@ public class UpdateUserController(IUserRepository userRepository, ILogger<Update
             return BadRequest(ModelState);
         }
 
-        string? email = User.GetUserEmail();
-        if (email is null)
+        int? userId = User.GetUserId();
+        if (userId is null)
         {
-            logger.LogWarning("User update attempt with missing email claim.");
-            return BadRequest("Token does not contain an email claim.");
+            logger.LogWarning("User update attempt with missing sub claim.");
+            return BadRequest("Token does not contain a sub claim.");
         }
 
-        User? user = await userRepository.GetUserByEmailAsync(email);
+        User? user = await userRepository.GetUserByIdAsync(userId.Value);
         if (user is null)
         {
-            logger.LogWarning("User update attempt for non-existent user: {Email}", email);
+            logger.LogWarning("User update attempt for non-existent user ID: {UserId}", userId);
             return NotFound(new { message = "User not found." });
         }
 
