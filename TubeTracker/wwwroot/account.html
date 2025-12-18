@@ -22,7 +22,7 @@
         </div>
     </nav>
 
-    <div class="container mt-5">
+    <div class="container mt-5 pb-5">
         <div class="row justify-content-center">
             <div class="col-md-8">
                 <h2 class="mb-4">Account Settings</h2>
@@ -86,7 +86,26 @@
                     body: JSON.stringify({ name })
                 });
                 const data = await response.json();
-                msg.innerHTML = `<div class="alert alert-${response.ok ? 'success' : 'danger'}">${data.message}</div>`;
+                if (response.ok) {
+                    msg.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                    
+                    // Refresh token to get the updated name in the JWT
+                    const refreshRes = await fetch('/api/auth/refresh', {
+                        method: 'POST',
+                        headers: getAuthHeader()
+                    });
+
+                    if (refreshRes.ok) {
+                        const refreshData = await refreshRes.json();
+                        const newToken = refreshData.token || refreshData.Token;
+                        if (newToken) {
+                            localStorage.setItem('token', newToken);
+                            updateNavbar(); // Update navbar with new name
+                        }
+                    }
+                } else {
+                    msg.innerHTML = `<div class="alert alert-danger">${data.message || 'Update failed.'}</div>`;
+                }
             } catch (err) { msg.innerText = "Error updating profile."; }
         });
 
