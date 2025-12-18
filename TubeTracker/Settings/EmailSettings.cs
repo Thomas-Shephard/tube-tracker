@@ -2,7 +2,8 @@ using System.Diagnostics.CodeAnalysis;
 
 namespace TubeTracker.API.Settings;
 
-[SuppressMessage("ReSharper", "PropertyCanBeMadeInitOnly.Global")]
+[SuppressMessage("ReSharper", "UnusedAutoPropertyAccessor.Global")]
+[SuppressMessage("ReSharper", "ClassNeverInstantiated.Global")]
 public class EmailSettings
 {
     public required string Host { get; set; }

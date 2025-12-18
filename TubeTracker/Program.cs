@@ -44,6 +44,7 @@ public static class Program
         // Configure Settings
         DatabaseSettings dbSettings = builder.Services.AddAndConfigureFromEnv<DatabaseSettings>(builder.Configuration, "DB");
         JwtSettings jwtSettings = builder.Services.AddAndConfigureFromEnv<JwtSettings>(builder.Configuration, "JWT");
+        TflSettings tflSettings = builder.Services.AddAndConfigureFromEnv<TflSettings>(builder.Configuration, "TFL");
         TokenDenySettings tokenDenySettings = builder.Services.AddAndConfigure<TokenDenySettings>(builder.Configuration, "TokenDenySettings");
 
         // Register Database Connection
@@ -63,6 +64,8 @@ public static class Program
         builder.Services.AddScoped<ITrackedStationRepository, TrackedStationRepository>();
         builder.Services.AddScoped<ILineRepository, LineRepository>();
         builder.Services.AddScoped<IStationRepository, StationRepository>();
+        builder.Services.AddScoped<ILineStatusHistoryRepository, LineStatusHistoryRepository>();
+        builder.Services.AddScoped<IStationStatusHistoryRepository, StationStatusHistoryRepository>();
 
         // Register Services
         builder.Services.AddHttpClient<ITflService, TflService>();
