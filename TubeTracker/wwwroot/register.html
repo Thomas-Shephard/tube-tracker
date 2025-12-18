@@ -64,12 +64,21 @@
                     body: JSON.stringify({ name, email, password })
                 });
 
-                const data = await response.json();
+                let data = {};
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    data = await response.json();
+                }
+
                 if (response.ok) {
-                    messageDiv.innerHTML = `<div class="alert alert-success">${data.message}</div>`;
+                    messageDiv.innerHTML = `<div class="alert alert-success">${data.message || 'Registration successful!'}</div>`;
                     e.target.reset();
                 } else {
-                    messageDiv.innerHTML = `<div class="alert alert-danger">${data.message || 'Registration failed. Please check your inputs.'}</div>`;
+                    let errorMessage = data.message || 'Registration failed. Please check your inputs.';
+                    if (response.status === 429) {
+                        errorMessage = "Too many requests. Please try again later.";
+                    }
+                    messageDiv.innerHTML = `<div class="alert alert-danger">${errorMessage}</div>`;
                 }
             } catch (error) {
                 messageDiv.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;

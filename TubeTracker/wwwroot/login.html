@@ -65,7 +65,19 @@
                     messageDiv.innerHTML = `<div class="alert alert-success">Login successful! Redirecting...</div>`;
                     setTimeout(() => window.location.href = '/', 1500);
                 } else {
-                    messageDiv.innerHTML = `<div class="alert alert-danger">Invalid email or password.</div>`;
+                    let errorMessage = "Invalid email or password.";
+                    if (response.status === 429) {
+                        errorMessage = "Too many failed attempts. Please try again later.";
+                    }
+                    
+                    try {
+                        const data = await response.json();
+                        if (data.message) errorMessage = data.message;
+                    } catch (e) {
+                        // Response might not be JSON
+                    }
+                    
+                    messageDiv.innerHTML = `<div class="alert alert-danger">${errorMessage}</div>`;
                 }
             } catch (error) {
                 messageDiv.innerHTML = `<div class="alert alert-danger">Error: ${error.message}</div>`;
