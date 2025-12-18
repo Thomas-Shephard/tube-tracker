@@ -69,4 +69,10 @@ public class LineStatusHistoryRepository(IDbConnection connection, StatusBackgro
         const string query = "SELECT MAX(last_reported_at) FROM LineStatusHistory";
         return await connection.QueryFirstOrDefaultAsync<DateTime?>(query);
     }
+
+    public async Task<int> DeleteOldHistoryAsync(DateTime threshold)
+    {
+        const string query = "DELETE FROM LineStatusHistory WHERE last_reported_at < @Threshold";
+        return await connection.ExecuteAsync(query, new { Threshold = threshold });
+    }
 }

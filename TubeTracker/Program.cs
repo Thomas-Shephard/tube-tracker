@@ -91,6 +91,7 @@ public class Program
         builder.Services.AddHostedService<TubeStatusBackgroundService>();
         builder.Services.AddHostedService<TubeMetadataBackgroundService>();
         builder.Services.AddHostedService<NotificationBackgroundService>();
+        builder.Services.AddHostedService<HistoryCleanupBackgroundService>();
 
         // Register background services/handlers that use TimeProvider
         builder.Services.AddSingleton(TimeProvider.System); // Register TimeProvider for consistency

@@ -7,5 +7,6 @@ namespace TubeTracker.API.Settings;
 public class StatusBackgroundSettings
 {
     public int RefreshIntervalMinutes { get; set; }
+    public int HistoryCleanupDays { get; set; } = 30;
     public double DeduplicationThresholdMinutes => RefreshIntervalMinutes * 1.5;
 }
