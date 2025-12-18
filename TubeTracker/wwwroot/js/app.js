@@ -160,9 +160,19 @@ async function loadTrackedStatus() {
                 lineList.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged));
             });
 
-            data.stations.forEach(station => {
+            const sortedStations = data.stations.map(station => {
                 const activeStatuses = station.statuses || [];
-                const hasIssues = activeStatuses.length > 0 && activeStatuses.some(s => s.statusDescription !== 'No Issues');
+                const isFlagged = activeStatuses.length > 0 && activeStatuses.some(s => s.statusDescription !== 'No Issues');
+                return { ...station, isFlagged };
+            }).sort((a, b) => {
+                if (a.isFlagged && !b.isFlagged) return -1;
+                if (!a.isFlagged && b.isFlagged) return 1;
+                return a.commonName.localeCompare(b.commonName);
+            });
+
+            sortedStations.forEach(station => {
+                const activeStatuses = station.statuses || [];
+                const hasIssues = station.isFlagged;
                 
                 const badgeText = hasIssues ? "Disruption" : "No disruptions";
                 const reasons = hasIssues ? activeStatuses.map(s => s.statusDescription) : [];
@@ -170,7 +180,7 @@ async function loadTrackedStatus() {
                 let badgeClass = hasIssues ? "bg-warning text-dark" : "bg-success";
                 let statusClass = hasIssues ? "status-minor" : "status-good";
 
-                stationList.insertAdjacentHTML('beforeend', createCardHtml(station.commonName, badgeText, badgeClass, statusClass, reasons));
+                stationList.insertAdjacentHTML('beforeend', createCardHtml(station.commonName, badgeText, badgeClass, statusClass, reasons, hasIssues));
             });
         } else if (response.status === 401) {
             logout();
