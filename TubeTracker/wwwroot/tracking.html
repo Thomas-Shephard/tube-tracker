@@ -149,20 +149,26 @@
                 const data = await res.json();
                 
                 if (res.ok) {
-                    showAlert('Account verified! Refreshing...', 'success');
-
+                    showAlert('Account verified! Refreshing your session...', 'success');
+                    
                     const refreshRes = await fetch('/api/auth/refresh', {
                         method: 'POST',
                         headers: getAuthHeader()
                     });
+
                     if (refreshRes.ok) {
                         const refreshData = await refreshRes.json();
-                        localStorage.setItem('token', refreshData.token);
-                        setTimeout(() => window.location.reload(), 1500);
-                    } else {
-                        showAlert('Verified! Please log in again to continue.', 'success');
-                        setTimeout(() => logout(), 2000);
+                        // API returns { Token: "..." }
+                        const newToken = refreshData.token || refreshData.Token;
+                        if (newToken) {
+                            localStorage.setItem('token', newToken);
+                            setTimeout(() => window.location.reload(), 1500);
+                            return;
+                        }
                     }
+                    
+                    showAlert('Verified! Please log in again to continue.', 'success');
+                    setTimeout(() => logout(), 2000);
                 } else {
                     showAlert(data.message || 'Verification failed.', 'danger');
                     btn.disabled = false;
