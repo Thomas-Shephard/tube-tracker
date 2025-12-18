@@ -9,7 +9,8 @@ public static class ClaimsExtensions
     {
         public int? GetUserId()
         {
-            string? userIdString = user.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
+            string? userIdString = user.FindFirst(JwtRegisteredClaimNames.Sub)?.Value 
+                                   ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             return int.TryParse(userIdString, out int userId)
                 ? userId
                 : null;
@@ -17,7 +18,8 @@ public static class ClaimsExtensions
 
         public string? GetUserEmail()
         {
-            return user.FindFirst(JwtRegisteredClaimNames.Email)?.Value;
+            return user.FindFirst(JwtRegisteredClaimNames.Email)?.Value 
+                   ?? user.FindFirst(ClaimTypes.Email)?.Value;
         }
 
         public bool IsVerified()
@@ -28,16 +30,19 @@ public static class ClaimsExtensions
 
         public DateTime? GetExpirationTime()
         {
-            string? expString = user.FindFirst(JwtRegisteredClaimNames.Exp)?.Value;
+            string? expString = user.FindFirst(JwtRegisteredClaimNames.Exp)?.Value 
+                                ?? user.FindFirst(ClaimTypes.Expiration)?.Value;
+            
             if (!long.TryParse(expString, out long expUnixTime))
                 return null;
-            DateTimeOffset dateTimeOffset = DateTimeOffset.FromUnixTimeSeconds(expUnixTime);
-            return dateTimeOffset.UtcDateTime;
+            
+            return DateTimeOffset.FromUnixTimeSeconds(expUnixTime).UtcDateTime;
         }
 
         public string? GetJti()
         {
-            return user.FindFirst(JwtRegisteredClaimNames.Jti)?.Value;
+            return user.FindFirst(JwtRegisteredClaimNames.Jti)?.Value 
+                   ?? user.FindFirst("jti")?.Value;
         }
     }
 }
