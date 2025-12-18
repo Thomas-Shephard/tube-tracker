@@ -61,6 +61,21 @@ function updateNavbar() {
     }
 }
 
+function validatePassword(password) {
+    const minLength = password.length >= 8;
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLower = /[a-z]/.test(password);
+    const hasDigit = /[0-9]/.test(password);
+    
+    const count = [minLength, hasUpper, hasLower, hasDigit].filter(Boolean).length;
+    
+    return {
+        isValid: minLength && hasUpper && hasLower && hasDigit,
+        score: count, // 0 to 4
+        requirements: { minLength, hasUpper, hasLower, hasDigit }
+    };
+}
+
 async function logout() {
     try {
         await fetch('/api/auth/logout', {

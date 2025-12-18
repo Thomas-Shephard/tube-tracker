@@ -33,6 +33,15 @@
                     <div class="mb-3">
                         <label class="form-label">Password</label>
                         <input type="password" id="password" class="form-control" required placeholder="Min 8 characters">
+                        <div id="password-strength" class="progress mt-2 d-none" style="height: 5px;">
+                            <div id="strength-bar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <ul id="password-requirements" class="list-unstyled small mt-2 d-none">
+                            <li id="req-length" class="text-danger"><i class="bi bi-x-circle me-1"></i>At least 8 characters</li>
+                            <li id="req-upper" class="text-danger"><i class="bi bi-x-circle me-1"></i>One uppercase letter</li>
+                            <li id="req-lower" class="text-danger"><i class="bi bi-x-circle me-1"></i>One lowercase letter</li>
+                            <li id="req-digit" class="text-danger"><i class="bi bi-x-circle me-1"></i>One number</li>
+                        </ul>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Confirm Password</label>
@@ -51,7 +60,42 @@
         </div>
     </div>
 
+    <script src="js/app.js"></script>
     <script>
+        const passwordInput = document.getElementById('password');
+        const strengthMeter = document.getElementById('password-strength');
+        const strengthBar = document.getElementById('strength-bar');
+        const reqList = document.getElementById('password-requirements');
+
+        passwordInput.addEventListener('input', () => {
+            const val = passwordInput.value;
+            if (!val) {
+                strengthMeter.classList.add('d-none');
+                reqList.classList.add('d-none');
+                return;
+            }
+
+            strengthMeter.classList.remove('d-none');
+            reqList.classList.remove('d-none');
+
+            const result = validatePassword(val);
+            const percent = (result.score / 4) * 100;
+            
+            strengthBar.style.width = percent + '%';
+            strengthBar.className = 'progress-bar ' + (result.score < 2 ? 'bg-danger' : result.score < 4 ? 'bg-warning' : 'bg-success');
+
+            updateReq('req-length', result.requirements.minLength);
+            updateReq('req-upper', result.requirements.hasUpper);
+            updateReq('req-lower', result.requirements.hasLower);
+            updateReq('req-digit', result.requirements.hasDigit);
+        });
+
+        function updateReq(id, valid) {
+            const el = document.getElementById(id);
+            el.className = valid ? 'text-success' : 'text-danger';
+            el.querySelector('i').className = valid ? 'bi bi-check-circle-fill me-1' : 'bi bi-x-circle me-1';
+        }
+
         document.getElementById('register-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             const name = document.getElementById('name').value;
@@ -59,6 +103,12 @@
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirm-password').value;
             const messageDiv = document.getElementById('message');
+
+            const validation = validatePassword(password);
+            if (!validation.isValid) {
+                messageDiv.innerHTML = `<div class="alert alert-danger">Password does not meet requirements.</div>`;
+                return;
+            }
 
             if (password !== confirmPassword) {
                 messageDiv.innerHTML = `<div class="alert alert-danger">Passwords do not match.</div>`;
