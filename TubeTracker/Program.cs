@@ -46,6 +46,7 @@ public static class Program
         JwtSettings jwtSettings = builder.Services.AddAndConfigureFromEnv<JwtSettings>(builder.Configuration, "JWT");
         TflSettings tflSettings = builder.Services.AddAndConfigureFromEnv<TflSettings>(builder.Configuration, "TFL");
         TokenDenySettings tokenDenySettings = builder.Services.AddAndConfigure<TokenDenySettings>(builder.Configuration, "TokenDenySettings");
+        StatusBackgroundSettings statusBackgroundSettings = builder.Services.AddAndConfigure<StatusBackgroundSettings>(builder.Configuration, "StatusBackgroundSettings");
 
         // Register Database Connection
         builder.Services.AddScoped<IDbConnection>(_ =>

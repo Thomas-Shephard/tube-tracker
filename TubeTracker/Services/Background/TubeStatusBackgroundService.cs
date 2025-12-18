@@ -1,12 +1,13 @@
 using TubeTracker.API.Models.Entities;
 using TubeTracker.API.Models.Tfl;
 using TubeTracker.API.Repositories;
+using TubeTracker.API.Settings;
 
 namespace TubeTracker.API.Services.Background;
 
-public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactory, TimeProvider timeProvider) : BackgroundService
+public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactory, TimeProvider timeProvider, StatusBackgroundSettings settings) : BackgroundService
 {
-    private readonly TimeSpan _period = TimeSpan.FromMinutes(1);
+    private readonly TimeSpan _period = TimeSpan.FromMinutes(settings.RefreshIntervalMinutes);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -44,7 +45,7 @@ public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactor
 
                 foreach (LineStatus status in tflLine.LineStatuses)
                 {
-                    await lineHistoryRepository.AddAsync(lineId, status.StatusSeverity);
+                    await lineHistoryRepository.UpsertAsync(lineId, status.StatusSeverity);
                 }
             }
 
@@ -63,7 +64,7 @@ public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactor
 
                     if (!string.IsNullOrEmpty(tflId) && stationMap.TryGetValue(tflId, out int stationId))
                     {
-                        await stationHistoryRepository.AddAsync(stationId, disruption.Description);
+                        await stationHistoryRepository.UpsertAsync(stationId, disruption.Description);
                     }
                     else
                     {

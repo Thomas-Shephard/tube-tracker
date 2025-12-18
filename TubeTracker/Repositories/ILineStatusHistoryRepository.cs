@@ -4,6 +4,6 @@ namespace TubeTracker.API.Repositories;
 
 public interface ILineStatusHistoryRepository
 {
-    Task AddAsync(int lineId, int statusSeverity);
-    Task<LineStatusHistory?> GetLatestByLineIdAsync(int lineId);
+    Task UpsertAsync(int lineId, int statusSeverity);
+    Task<IEnumerable<LineStatusHistory>> GetActiveByLineIdAsync(int lineId);
 }
