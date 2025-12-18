@@ -6,4 +6,5 @@ public class LineStatusHistory
     public int LineId { get; init; }
     public int StatusSeverity { get; init; }
     public DateTime CheckedAt { get; init; }
+    public required StatusSeverity Severity { get; init; }
 }
