@@ -60,9 +60,9 @@ public class TrackedStationRepository(IDbConnection connection) : ITrackedStatio
                              JOIN StationStatusHistory ssh ON s.station_id = ssh.station_id
                              WHERE ts.notify = 1
                                AND u.is_verified = 1
-                               AND ssh.last_reported_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+                               AND ssh.last_reported_at > DATE_SUB(UTC_TIMESTAMP(), INTERVAL 15 MINUTE)
                                AND (max_notified_history_id IS NULL OR ssh.history_id > max_notified_history_id)
-                               AND ssh.first_reported_at > IFNULL(ts.last_notified_at, ts.created_at)
+                               AND ssh.status_description != 'No Issues'
                              """;
 
         return await connection.QueryAsync<StationNotificationModel>(query);

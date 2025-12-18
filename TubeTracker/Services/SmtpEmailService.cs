@@ -46,7 +46,7 @@ public class SmtpEmailService : IEmailService
 
         string htmlBody = _template
                           .Replace("{{Title}}", WebUtility.HtmlEncode(title))
-                          .Replace("{{Body}}", WebUtility.HtmlEncode(body));
+                          .Replace("{{Body}}", body);
 
         message.Body = new TextPart("html")
         {
