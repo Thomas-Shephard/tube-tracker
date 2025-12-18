@@ -69,8 +69,10 @@ public class Program
         builder.Services.AddScoped<IStationStatusHistoryRepository, StationStatusHistoryRepository>();
 
         // Register Services
-        builder.Services.AddHttpClient<ITflService, TflService>();
-        builder.Services.AddSingleton<ITokenService, TokenService>(); // Assuming TokenService takes JwtSettings via ctor or is configured elsewhere if not added here
+        builder.Services.AddHttpClient<ITflService, TflService>()
+            .AddStandardResilienceHandler();
+        
+        builder.Services.AddSingleton<ITokenService, TokenService>();
 
         // Conditional Email Service Registration
         bool useMockEmailService = bool.TryParse(builder.Configuration["USE_MOCK_EMAIL_SERVICE"], out bool useMock) && useMock;
@@ -94,7 +96,7 @@ public class Program
         builder.Services.AddHostedService<HistoryCleanupBackgroundService>();
 
         // Register background services/handlers that use TimeProvider
-        builder.Services.AddSingleton(TimeProvider.System); // Register TimeProvider for consistency
+        builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddSingleton<ITokenDenyService>(sp => new TokenDenyService(
             tokenDenySettings,
             TimeProvider.System,
@@ -160,7 +162,7 @@ public class Program
 
         DatabaseMigrator.ApplyMigrations(dbSettings.ConnectionString);
 
-        app.MapOpenApi(); // Uses Swagger UI if in development
+        app.MapOpenApi();
         app.MapScalarApiReference("/scalar");
 
         app.UseHttpsRedirection();
