@@ -86,9 +86,9 @@ public class TubeMetadataBackgroundService(IServiceScopeFactory serviceScopeFact
                 }
             }
         }
-        catch (Exception)
+        catch (Exception e)
         {
-            // Ignored
+            Console.WriteLine($"Failed to update metadata: {e.Message}");
         }
     }
 }
