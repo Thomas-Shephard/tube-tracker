@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
+using TubeTracker.API.Attributes;
 using TubeTracker.API.Models.Entities;
 using TubeTracker.API.Models.Requests;
 using TubeTracker.API.Repositories;
@@ -20,6 +21,7 @@ public class RegisterUserController(
     private const string SuccessMessage = "An account has been created successfully. Check your email for a verification code.";
 
     [HttpPost]
+    [SecurityLockout(AlwaysRecord = true)]
     public async Task<IActionResult> Register([FromBody] RegisterRequestModel requestModel)
     {
         if (!ModelState.IsValid)

@@ -1,6 +1,7 @@
 using System.Data;
 using System.Diagnostics.CodeAnalysis;
 using System.IdentityModel.Tokens.Jwt;
+using System.Net;
 using System.Text;
 using Dapper;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -29,24 +30,34 @@ public class Program
         // Load environment variables into configuration
         builder.Configuration.AddEnvironmentVariables();
 
+        // Configure Settings
+        DatabaseSettings dbSettings = builder.Services.AddAndConfigureFromEnv<DatabaseSettings>(builder.Configuration, "DB");
+        JwtSettings jwtSettings = builder.Services.AddAndConfigureFromEnv<JwtSettings>(builder.Configuration, "JWT");
+        builder.Services.AddAndConfigureFromEnv<TflSettings>(builder.Configuration, "TFL");
+        ProxySettings proxySettings = builder.Services.AddAndConfigureFromEnv<ProxySettings>(builder.Configuration, "PROXY");
+        TokenDenySettings tokenDenySettings = builder.Services.AddAndConfigure<TokenDenySettings>(builder.Configuration, "TokenDenySettings");
+        builder.Services.AddAndConfigure<StatusBackgroundSettings>(builder.Configuration, "StatusBackgroundSettings");
+        SecurityLockoutSettings lockoutSettings = builder.Services.AddAndConfigure<SecurityLockoutSettings>(builder.Configuration, "SecurityLockoutSettings");
+
         // Configure Forwarded Headers for Reverse Proxy (Nginx/Docker)
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
         {
             options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
             options.KnownIPNetworks.Clear();
             options.KnownProxies.Clear();
+
+            foreach (string ip in proxySettings.TrustedProxies.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                if (IPAddress.TryParse(ip.Trim(), out IPAddress? address))
+                {
+                    options.KnownProxies.Add(address);
+                }
+            }
         });
 
         // Add standard web services
         builder.Services.AddControllers();
         builder.Services.AddOpenApi();
-
-        // Configure Settings
-        DatabaseSettings dbSettings = builder.Services.AddAndConfigureFromEnv<DatabaseSettings>(builder.Configuration, "DB");
-        JwtSettings jwtSettings = builder.Services.AddAndConfigureFromEnv<JwtSettings>(builder.Configuration, "JWT");
-        builder.Services.AddAndConfigureFromEnv<TflSettings>(builder.Configuration, "TFL");
-        TokenDenySettings tokenDenySettings = builder.Services.AddAndConfigure<TokenDenySettings>(builder.Configuration, "TokenDenySettings");
-        builder.Services.AddAndConfigure<StatusBackgroundSettings>(builder.Configuration, "StatusBackgroundSettings");
 
         // Register Database Connection
         builder.Services.AddScoped<IDbConnection>(_ =>
@@ -102,6 +113,11 @@ public class Program
             TimeProvider.System,
             sp.GetRequiredService<IServiceScopeFactory>(),
             sp.GetRequiredService<ILogger<TokenDenyService>>()));
+
+        builder.Services.AddSingleton<ISecurityLockoutService>(sp => new SecurityLockoutService(
+            lockoutSettings,
+            TimeProvider.System,
+            sp.GetRequiredService<ILogger<SecurityLockoutService>>()));
 
         // Configure JWT Authentication
         builder.Services.AddAuthentication(options =>

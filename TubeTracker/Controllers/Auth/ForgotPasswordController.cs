@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
+using TubeTracker.API.Attributes;
 using TubeTracker.API.Models.Entities;
 using TubeTracker.API.Models.Requests;
 using TubeTracker.API.Repositories;
@@ -20,6 +21,7 @@ public class ForgotPasswordController(
     private const string SuccessMessage = "If the email exists, a password reset token has been sent.";
 
     [HttpPost]
+    [SecurityLockout]
     public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordRequestModel requestModel)
     {
         if (!ModelState.IsValid)

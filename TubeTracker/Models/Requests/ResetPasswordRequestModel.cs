@@ -3,7 +3,7 @@ using TubeTracker.API.Attributes;
 
 namespace TubeTracker.API.Models.Requests;
 
-public class ResetPasswordRequestModel
+public class ResetPasswordRequestModel : IEmailRequest
 {
     [Required]
     [EmailAddress]

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using TubeTracker.API.Attributes;
 using TubeTracker.API.Models.Entities;
 using TubeTracker.API.Models.Requests;
 using TubeTracker.API.Repositories;
@@ -10,9 +11,14 @@ namespace TubeTracker.API.Controllers.Auth;
 [ApiController]
 [Route("api/auth/login")]
 [Tags("Auth")]
-public class LoginController(IUserRepository userRepository, ITokenService tokenService, ILogger<LoginController> logger) : ControllerBase
+public class LoginController(
+    IUserRepository userRepository, 
+    ITokenService tokenService, 
+    ISecurityLockoutService securityLockoutService,
+    ILogger<LoginController> logger) : ControllerBase
 {
     [HttpPost]
+    [SecurityLockout]
     public async Task<IActionResult> Login([FromBody] LoginRequestModel requestModel)
     {
         if (!ModelState.IsValid)
@@ -30,6 +36,13 @@ public class LoginController(IUserRepository userRepository, ITokenService token
         {
             logger.LogWarning("Failed login attempt for email: {Email}", requestModel.Email);
             return Unauthorized();
+        }
+
+        // Reset security attempts on success
+        string? ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+        if (!string.IsNullOrEmpty(ipAddress))
+        {
+            await securityLockoutService.ResetAttempts($"IP:{ipAddress}", $"Email:{requestModel.Email}");
         }
 
         DateTime loginTime = DateTime.UtcNow;

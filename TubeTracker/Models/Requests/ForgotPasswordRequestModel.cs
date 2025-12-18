@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TubeTracker.API.Models.Requests;
 
-public class ForgotPasswordRequestModel
+public class ForgotPasswordRequestModel : IEmailRequest
 {
     [Required]
     [EmailAddress]
