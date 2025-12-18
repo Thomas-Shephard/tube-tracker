@@ -162,9 +162,14 @@ async function loadTrackedStatus() {
 
             data.stations.forEach(station => {
                 const activeStatuses = station.statuses || [];
-                const severityDescription = activeStatuses.length ? activeStatuses.map(s => s.statusDescription).join(" & ") : "No disruptions";
-                let badgeClass = activeStatuses.length ? "bg-warning text-dark" : "bg-success";
-                let statusClass = activeStatuses.length ? "status-minor" : "status-good";
+                const hasIssues = activeStatuses.length > 0 && activeStatuses.some(s => s.statusDescription !== 'No Issues');
+                
+                const severityDescription = hasIssues 
+                    ? activeStatuses.map(s => s.statusDescription).join(" & ") 
+                    : "No disruptions";
+                
+                let badgeClass = hasIssues ? "bg-warning text-dark" : "bg-success";
+                let statusClass = hasIssues ? "status-minor" : "status-good";
 
                 stationList.insertAdjacentHTML('beforeend', createCardHtml(station.commonName, severityDescription, badgeClass, statusClass, []));
             });
