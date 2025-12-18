@@ -32,15 +32,19 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Password</label>
-                        <input type="password" id="password" class="form-control" required placeholder="Min 8 characters">
+                        <input type="password" id="password" class="form-control" required placeholder="At least 8 characters">
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="checkbox" id="show-password">
+                            <label class="form-check-label small text-muted" for="show-password">Show password</label>
+                        </div>
                         <div id="password-strength" class="progress mt-2 d-none" style="height: 5px;">
                             <div id="strength-bar" class="progress-bar" role="progressbar" style="width: 0%"></div>
                         </div>
                         <ul id="password-requirements" class="list-unstyled small mt-2 d-none">
                             <li id="req-length" class="text-danger"><i class="bi bi-x-circle me-1"></i>At least 8 characters</li>
-                            <li id="req-upper" class="text-danger"><i class="bi bi-x-circle me-1"></i>One uppercase letter</li>
-                            <li id="req-lower" class="text-danger"><i class="bi bi-x-circle me-1"></i>One lowercase letter</li>
-                            <li id="req-digit" class="text-danger"><i class="bi bi-x-circle me-1"></i>One number</li>
+                            <li id="req-upper" class="text-danger"><i class="bi bi-x-circle me-1"></i>At least 1 uppercase letter</li>
+                            <li id="req-lower" class="text-danger"><i class="bi bi-x-circle me-1"></i>At least 1 lowercase letter</li>
+                            <li id="req-digit" class="text-danger"><i class="bi bi-x-circle me-1"></i>At least 1 number</li>
                         </ul>
                     </div>
                     <div class="mb-3">
@@ -63,9 +67,12 @@
     <script src="js/app.js"></script>
     <script>
         const passwordInput = document.getElementById('password');
+        const showPassword = document.getElementById('show-password');
         const strengthMeter = document.getElementById('password-strength');
-        const strengthBar = document.getElementById('strength-bar');
-        const reqList = document.getElementById('password-requirements');
+
+        showPassword.addEventListener('change', () => {
+            passwordInput.type = showPassword.checked ? 'text' : 'password';
+        });
 
         passwordInput.addEventListener('input', () => {
             const val = passwordInput.value;
