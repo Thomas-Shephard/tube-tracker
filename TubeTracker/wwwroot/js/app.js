@@ -8,31 +8,59 @@ async function loadTubeStatus() {
     try {
         const response = await fetch('/api/status/lines');
         if (response.ok) {
-            const lines = await response.json();
+            let lines = await response.json();
             
             resultElement.innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
             resultElement.className = "text-success mb-0";
             
             listContainer.innerHTML = ''; // clear list
 
+            // Pre-process lines to determine their minSeverityId for sorting
+            lines = lines.map(line => {
+                const activeStatuses = (line.statuses && line.statuses.length > 0) ? line.statuses : [];
+                const minSeverityId = activeStatuses.length > 0 
+                    ? Math.min(...activeStatuses.map(s => s.severity.severityLevel)) 
+                    : 10;
+                return { ...line, minSeverityId };
+            });
+
+            // Sort: 1. Severity (ascending ID, so 0-5 before 10) 2. Name (alphabetical)
+            lines.sort((a, b) => {
+                if (a.minSeverityId !== b.minSeverityId) {
+                    return a.minSeverityId - b.minSeverityId;
+                }
+                return a.name.localeCompare(b.name);
+            });
+
             lines.forEach(line => {
-                // The API returns an array of statuses, we take the most severe one or just the first one if it's active
-                // For simplicity, we'll look at the first status in the 'statuses' array
-                const status = (line.statuses && line.statuses.length > 0) 
-                    ? line.statuses[0] 
-                    : null;
+                const activeStatuses = (line.statuses && line.statuses.length > 0) ? line.statuses : [];
                 
-                const severity = status ? status.severity.description : "Good Service";
-                const severityId = status ? status.severity.severityLevel : 10;
+                let severityDescription = "Good Service";
+                let minSeverityId = 10;
+                let reasons = [];
+
+                if (activeStatuses.length > 0) {
+                    // Sort by severity level (lower is more severe)
+                    activeStatuses.sort((a, b) => a.severity.severityLevel - b.severity.severityLevel);
+                    
+                    // Join descriptions: e.g. "Part Closure & Minor Delays"
+                    severityDescription = activeStatuses.map(s => s.severity.description).join(" & ");
+                    minSeverityId = activeStatuses[0].severity.severityLevel;
+                    
+                    // Collect unique reasons
+                    reasons = activeStatuses
+                        .map(s => s.reason)
+                        .filter((reason, index, self) => reason && self.indexOf(reason) === index);
+                }
                 
-                // Determine CSS class based on severityId (TfL standard: 10 is Good Service)
+                // Determine CSS class based on minSeverityId (TfL standard: 10 is Good Service)
                 let statusClass = "status-good";
                 let badgeClass = "bg-success";
                 
-                if (severityId < 10 && severityId > 5) {
+                if (minSeverityId < 10 && minSeverityId > 5) {
                     statusClass = "status-minor";
                     badgeClass = "bg-warning text-dark";
-                } else if (severityId <= 5) {
+                } else if (minSeverityId <= 5) {
                     statusClass = "status-severe";
                     badgeClass = "bg-danger";
                 }
@@ -43,9 +71,9 @@ async function loadTubeStatus() {
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
                                     <h5 class="card-title fw-bold mb-0">${line.name}</h5>
-                                    <span class="badge ${badgeClass}">${severity}</span>
+                                    <span class="badge ${badgeClass}">${severityDescription}</span>
                                 </div>
-                                ${status && status.reason ? `<p class="card-text small text-muted mt-2">${status.reason}</p>` : ''}
+                                ${reasons.length > 0 ? `<div class="mt-2">${reasons.map(r => `<p class="card-text small text-muted mb-1">${r}</p>`).join('')}</div>` : ''}
                             </div>
                         </div>
                     </div>
@@ -66,5 +94,9 @@ async function loadTubeStatus() {
     }
 }
 
-// Load on startup
-document.addEventListener('DOMContentLoaded', loadTubeStatus);
+// Load on startup and set interval
+document.addEventListener('DOMContentLoaded', () => {
+    loadTubeStatus();
+    // Refresh every minute
+    setInterval(loadTubeStatus, 60000);
+});
