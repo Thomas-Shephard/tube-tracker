@@ -1,102 +1,166 @@
+function isLoggedIn() {
+    return localStorage.getItem('token') !== null;
+}
+
+function getAuthHeader() {
+    const token = localStorage.getItem('token');
+    return token ? { 'Authorization': `Bearer ${token}` } : {};
+}
+
+function updateNavbar() {
+    const navItems = document.getElementById('nav-items');
+    if (!navItems) return;
+
+    if (isLoggedIn()) {
+        navItems.innerHTML = `
+            <li class="nav-item">
+                <a class="nav-link" href="/tracking.html">Manage Tracking</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/account.html">Account</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link btn btn-outline-light ms-lg-3 px-4" href="#" onclick="logout()">Logout</a>
+            </li>
+        `;
+    } else {
+        navItems.innerHTML = `
+            <li class="nav-item">
+                <a class="nav-link" href="#status">Live Status</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link btn btn-outline-light ms-lg-3 px-4" href="/login.html">Login</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link btn btn-primary ms-lg-2 px-4" href="/register.html">Register</a>
+            </li>
+        `;
+    }
+}
+
+function logout() {
+    localStorage.removeItem('token');
+    window.location.href = '/';
+}
+
 async function loadTubeStatus() {
     const resultElement = document.getElementById('api-result');
     const listContainer = document.getElementById('tube-list');
-    
-    resultElement.innerText = "Fetching latest data...";
-    resultElement.className = "text-muted";
+    if (!listContainer) return;
 
+    resultElement.innerText = "Fetching latest data...";
+    
     try {
         const response = await fetch('/api/status/lines');
         if (response.ok) {
             let lines = await response.json();
-            
             resultElement.innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
-            resultElement.className = "text-success mb-0";
-            
-            listContainer.innerHTML = ''; // clear list
+            listContainer.innerHTML = '';
 
-            // Pre-process lines to determine their minSeverityId for sorting
-            lines = lines.map(line => {
-                const activeStatuses = (line.statuses && line.statuses.length > 0) ? line.statuses : [];
-                const minSeverityId = activeStatuses.length > 0 
-                    ? Math.min(...activeStatuses.map(s => s.severity.severityLevel)) 
-                    : 10;
-                return { ...line, minSeverityId };
-            });
-
-            // Sort: 1. Severity (ascending ID, so 0-5 before 10) 2. Name (alphabetical)
-            lines.sort((a, b) => {
-                if (a.minSeverityId !== b.minSeverityId) {
-                    return a.minSeverityId - b.minSeverityId;
-                }
-                return a.name.localeCompare(b.name);
-            });
+            // Sort by severity then name
+            lines = lines.map(line => ({
+                ...line,
+                minSeverityId: line.statuses && line.statuses.length > 0 
+                    ? Math.min(...line.statuses.map(s => s.severity.severityLevel)) 
+                    : 10
+            })).sort((a, b) => (a.minSeverityId - b.minSeverityId) || a.name.localeCompare(b.name));
 
             lines.forEach(line => {
-                const activeStatuses = (line.statuses && line.statuses.length > 0) ? line.statuses : [];
+                const activeStatuses = line.statuses || [];
+                const severityDescription = activeStatuses.length > 0 ? activeStatuses.map(s => s.severity.description).join(" & ") : "Good Service";
+                const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
                 
-                let severityDescription = "Good Service";
-                let minSeverityId = 10;
-                let reasons = [];
-
-                if (activeStatuses.length > 0) {
-                    // Sort by severity level (lower is more severe)
-                    activeStatuses.sort((a, b) => a.severity.severityLevel - b.severity.severityLevel);
-                    
-                    // Join descriptions: e.g. "Part Closure & Minor Delays"
-                    severityDescription = activeStatuses.map(s => s.severity.description).join(" & ");
-                    minSeverityId = activeStatuses[0].severity.severityLevel;
-                    
-                    // Collect unique reasons
-                    reasons = activeStatuses
-                        .map(s => s.reason)
-                        .filter((reason, index, self) => reason && self.indexOf(reason) === index);
-                }
-                
-                // Determine CSS class based on minSeverityId (TfL standard: 10 is Good Service)
-                let statusClass = "status-good";
                 let badgeClass = "bg-success";
-                
-                if (minSeverityId < 10 && minSeverityId > 5) {
-                    statusClass = "status-minor";
+                let statusClass = "status-good";
+                if (line.minSeverityId < 10 && line.minSeverityId > 5) {
                     badgeClass = "bg-warning text-dark";
-                } else if (minSeverityId <= 5) {
-                    statusClass = "status-severe";
+                    statusClass = "status-minor";
+                } else if (line.minSeverityId <= 5) {
                     badgeClass = "bg-danger";
+                    statusClass = "status-severe";
                 }
 
-                const cardHtml = `
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card h-100 shadow-sm line-card ${statusClass}">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <h5 class="card-title fw-bold mb-0">${line.name}</h5>
-                                    <span class="badge ${badgeClass}">${severityDescription}</span>
-                                </div>
-                                ${reasons.length > 0 ? `<div class="mt-2">${reasons.map(r => `<p class="card-text small text-muted mb-1">${r}</p>`).join('')}</div>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                `;
-                listContainer.insertAdjacentHTML('beforeend', cardHtml);
+                listContainer.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons));
             });
-            
-        } else {
-            resultElement.innerText = "Error loading data: " + response.statusText;
-            resultElement.className = "text-danger";
-            listContainer.innerHTML = `<div class="col-12"><div class="alert alert-danger">Failed to load tube status. Please try again later.</div></div>`;
         }
-    } catch (error) {
-        console.error("Fetch error:", error);
-        resultElement.innerText = "Connection error. Please check your internet.";
-        resultElement.className = "text-danger";
-        listContainer.innerHTML = `<div class="col-12"><div class="alert alert-danger">An error occurred while connecting to the server.</div></div>`;
-    }
+    } catch (e) { console.error(e); }
 }
 
-// Load on startup and set interval
+async function loadTrackedStatus() {
+    if (!isLoggedIn()) return;
+    
+    const lineList = document.getElementById('tracked-line-list');
+    const stationList = document.getElementById('tracked-station-list');
+    const resultElement = document.getElementById('tracked-api-result');
+    if (!lineList) return;
+
+    try {
+        const response = await fetch('/api/status/tracked', { headers: getAuthHeader() });
+        if (response.ok) {
+            const data = await response.json();
+            resultElement.innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
+            
+            lineList.innerHTML = data.lines.length ? '' : '<div class="col-12 text-muted">You are not tracking any lines.</div>';
+            stationList.innerHTML = data.stations.length ? '' : '<div class="col-12 text-muted">You are not tracking any stations.</div>';
+
+            data.lines.forEach(line => {
+                const activeStatuses = line.statuses || [];
+                const minSeverityId = activeStatuses.length ? Math.min(...activeStatuses.map(s => s.severity.severityLevel)) : 10;
+                const severityDescription = activeStatuses.length ? activeStatuses.map(s => s.severity.description).join(" & ") : "Good Service";
+                const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
+                
+                let badgeClass = minSeverityId < 10 ? (minSeverityId <= 5 ? "bg-danger" : "bg-warning text-dark") : "bg-success";
+                let statusClass = minSeverityId < 10 ? (minSeverityId <= 5 ? "status-severe" : "status-minor") : "status-good";
+                
+                lineList.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons));
+            });
+
+            data.stations.forEach(station => {
+                const activeStatuses = station.statuses || [];
+                const severityDescription = activeStatuses.length ? activeStatuses.map(s => s.statusDescription).join(" & ") : "No disruptions";
+                let badgeClass = activeStatuses.length ? "bg-warning text-dark" : "bg-success";
+                let statusClass = activeStatuses.length ? "status-minor" : "status-good";
+
+                stationList.insertAdjacentHTML('beforeend', createCardHtml(station.commonName, severityDescription, badgeClass, statusClass, []));
+            });
+        } else if (response.status === 401) {
+            logout();
+        }
+    } catch (e) { console.error(e); }
+}
+
+function createCardHtml(name, severity, badgeClass, statusClass, reasons) {
+    return `
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm line-card ${statusClass}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title fw-bold mb-0">${name}</h5>
+                        <span class="badge ${badgeClass}">${severity}</span>
+                    </div>
+                    ${reasons.map(r => `<p class="card-text small text-muted mt-2 mb-0">${r}</p>`).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Global scope for onclick
+window.logout = logout;
+
 document.addEventListener('DOMContentLoaded', () => {
+    updateNavbar();
+    
+    if (isLoggedIn()) {
+        document.getElementById('tracked-status').classList.remove('d-none');
+        document.getElementById('status-title').innerText = "All Line Statuses";
+        loadTrackedStatus();
+        setInterval(loadTrackedStatus, 60000);
+    } else {
+        document.getElementById('guest-hero').classList.remove('d-none');
+        document.getElementById('guest-features').classList.remove('d-none');
+    }
+    
     loadTubeStatus();
-    // Refresh every minute
     setInterval(loadTubeStatus, 60000);
 });

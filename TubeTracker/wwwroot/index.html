@@ -37,34 +37,26 @@
             color: #0019a8;
             margin-bottom: 1rem;
         }
+        [v-cloak] { display: none; }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
         <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="#">
-                Tube Tracker
-            </a>
+            <a class="navbar-brand d-flex align-items-center" href="/">Tube Tracker</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-nav-item">
-                        <a class="nav-link" href="#status">Live Status</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link btn btn-outline-light ms-lg-3 px-4" href="/login.html">Login</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link btn btn-primary ms-lg-2 px-4" href="/register.html">Register</a>
-                    </li>
+                <ul class="navbar-nav ms-auto" id="nav-items">
+                    <!-- Nav items injected by app.js -->
                 </ul>
             </div>
         </div>
     </nav>
 
-    <header class="hero-section text-center">
+    <!-- Guest Hero Section -->
+    <header id="guest-hero" class="hero-section text-center d-none">
         <div class="container">
             <h1 class="display-3 fw-bold mb-4">Master Your London Commute</h1>
             <p class="lead mb-5">Get real-time updates for all London Underground lines and personalized notifications for your most-used routes.</p>
@@ -76,7 +68,8 @@
     </header>
 
     <main class="container">
-        <section class="cta-section text-center rounded-4 shadow-sm mb-5">
+        <!-- Guest Features Section -->
+        <section id="guest-features" class="cta-section text-center rounded-4 shadow-sm mb-5 d-none">
             <div class="container">
                 <h2 class="fw-bold mb-5">Why Create an Account?</h2>
                 <div class="row g-5">
@@ -102,14 +95,32 @@
             </div>
         </section>
 
+        <!-- Tracked Status (Logged In Only) -->
+        <section id="tracked-status" class="mb-5 d-none">
+            <div class="mb-4">
+                <h2 class="fw-bold">Your Tracked Status</h2>
+                <p id="tracked-api-result" class="text-muted mb-0">Fetching your personalized updates...</p>
+            </div>
+            
+            <h4 class="mb-3">Lines</h4>
+            <div class="row g-4 mb-4" id="tracked-line-list">
+                <!-- Tracked line cards -->
+            </div>
+
+            <h4 class="mb-3">Stations</h4>
+            <div class="row g-4" id="tracked-station-list">
+                <!-- Tracked station cards -->
+            </div>
+        </section>
+
+        <!-- All Line Status (Always Visible) -->
         <section id="status" class="mb-5">
             <div class="mb-4">
-                <h2 class="fw-bold">Current Line Status</h2>
+                <h2 class="fw-bold" id="status-title">Current Line Status</h2>
                 <p id="api-result" class="text-muted mb-0">Fetching latest data...</p>
             </div>
 
             <div class="row g-4" id="tube-list">
-                <!-- Tube cards will be injected here -->
                 <div class="col-12 text-center py-5">
                     <div class="spinner-border text-primary" role="status">
                         <span class="visually-hidden">Loading...</span>
