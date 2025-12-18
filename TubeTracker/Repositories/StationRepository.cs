@@ -24,6 +24,12 @@ public class StationRepository(IDbConnection connection) : IStationRepository
         return await connection.QuerySingleOrDefaultAsync<Station>(query, new { TflId = tflId });
     }
 
+    public async Task<Station?> GetByCommonNameAsync(string commonName)
+    {
+        const string query = "SELECT * FROM Station WHERE common_name = @CommonName";
+        return await connection.QueryFirstOrDefaultAsync<Station>(query, new { CommonName = commonName });
+    }
+
     public async Task<IEnumerable<Station>> GetAllAsync()
     {
         const string query = "SELECT * FROM Station";

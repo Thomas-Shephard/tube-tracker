@@ -57,11 +57,18 @@ public class TubeMetadataBackgroundService(IServiceScopeFactory serviceScopeFact
 
             List<TflStopPoint> tflStations = await tflService.GetStationsAsync();
 
-            foreach (TflStopPoint stopPoint in tflStations)
-            {
-                Station? existingStation = await stationRepository.GetByTflIdAsync(stopPoint.Id);
+            string[] allowedStopTypes = ["NaptanMetroStation", "NaptanRailStation", "NaptanTrainStation", "NaptanDlrStation"];
 
-                if (existingStation == null)
+            IEnumerable<TflStopPoint> uniqueStations = tflStations
+                                                       .Where(s => allowedStopTypes.Contains(s.StopType))
+                                                       .GroupBy(s => s.CommonName)
+                                                       .Select(g => g.OrderBy(s => s.Id.StartsWith('9') ? 0 : 1).First());
+
+            foreach (TflStopPoint stopPoint in uniqueStations)
+            {
+                Station? existingStation = await stationRepository.GetByTflIdAsync(stopPoint.Id) ?? await stationRepository.GetByCommonNameAsync(stopPoint.CommonName);
+
+                if (existingStation is null)
                 {
                     Station newStation = new()
                     {
@@ -74,11 +81,13 @@ public class TubeMetadataBackgroundService(IServiceScopeFactory serviceScopeFact
                 }
                 else
                 {
-                    bool changed = existingStation.CommonName != stopPoint.CommonName ||
+                    bool changed = existingStation.TflId != stopPoint.Id ||
+                                   existingStation.CommonName != stopPoint.CommonName ||
                                    Math.Abs((existingStation.Lat ?? 0) - stopPoint.Lat) > 0.000001 ||
                                    Math.Abs((existingStation.Lon ?? 0) - stopPoint.Lon) > 0.000001;
 
                     if (!changed) continue;
+                    existingStation.TflId = stopPoint.Id;
                     existingStation.CommonName = stopPoint.CommonName;
                     existingStation.Lat = stopPoint.Lat;
                     existingStation.Lon = stopPoint.Lon;

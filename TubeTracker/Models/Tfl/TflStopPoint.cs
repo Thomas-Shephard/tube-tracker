@@ -15,4 +15,7 @@ public class TflStopPoint
 
     [JsonPropertyName("lon")]
     public double Lon { get; set; }
+
+    [JsonPropertyName("stopType")]
+    public string StopType { get; set; } = string.Empty;
 }

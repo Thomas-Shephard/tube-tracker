@@ -67,9 +67,9 @@ public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactor
 
                 foreach (TflStationDisruption disruption in stationDisruptions)
                 {
-                    string tflId = string.IsNullOrEmpty(disruption.AtcoCode)
-                        ? disruption.AtcoCode
-                        : disruption.StationAtcoCode;
+                    string tflId = string.IsNullOrEmpty(disruption.StationAtcoCode)
+                        ? disruption.StationAtcoCode
+                        : disruption.AtcoCode;
 
                     if (!string.IsNullOrEmpty(tflId) && stationMap.TryGetValue(tflId, out int stationId))
                     {
