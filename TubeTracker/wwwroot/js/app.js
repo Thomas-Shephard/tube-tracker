@@ -164,14 +164,13 @@ async function loadTrackedStatus() {
                 const activeStatuses = station.statuses || [];
                 const hasIssues = activeStatuses.length > 0 && activeStatuses.some(s => s.statusDescription !== 'No Issues');
                 
-                const severityDescription = hasIssues 
-                    ? activeStatuses.map(s => s.statusDescription).join(" & ") 
-                    : "No disruptions";
+                const badgeText = hasIssues ? "Disruption" : "No disruptions";
+                const reasons = hasIssues ? activeStatuses.map(s => s.statusDescription) : [];
                 
                 let badgeClass = hasIssues ? "bg-warning text-dark" : "bg-success";
                 let statusClass = hasIssues ? "status-minor" : "status-good";
 
-                stationList.insertAdjacentHTML('beforeend', createCardHtml(station.commonName, severityDescription, badgeClass, statusClass, []));
+                stationList.insertAdjacentHTML('beforeend', createCardHtml(station.commonName, badgeText, badgeClass, statusClass, reasons));
             });
         } else if (response.status === 401) {
             logout();
