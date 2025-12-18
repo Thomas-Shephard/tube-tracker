@@ -2,19 +2,24 @@ function isLoggedIn() {
     return localStorage.getItem('token') !== null;
 }
 
-function isVerified() {
+function getDecodedToken() {
     const token = localStorage.getItem('token');
-    if (!token) return false;
+    if (!token) return null;
     try {
         const base64Url = token.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
         const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
             return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
         }).join(''));
-        return JSON.parse(jsonPayload).is_verified === 'true';
+        return JSON.parse(jsonPayload);
     } catch (e) {
-        return false;
+        return null;
     }
+}
+
+function isVerified() {
+    const payload = getDecodedToken();
+    return payload ? payload.is_verified === 'true' : false;
 }
 
 function getAuthHeader() {
@@ -216,6 +221,11 @@ document.addEventListener('DOMContentLoaded', () => {
     updateNavbar();
     
     if (isLoggedIn()) {
+        const banner = document.getElementById('verification-banner');
+        if (banner && !isVerified()) {
+            banner.classList.remove('d-none');
+        }
+
         document.getElementById('tracked-status').classList.remove('d-none');
         document.getElementById('status-title').innerText = "All Line Statuses";
         loadTrackedStatus();

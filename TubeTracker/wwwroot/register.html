@@ -34,6 +34,10 @@
                         <label class="form-label">Password</label>
                         <input type="password" id="password" class="form-control" required placeholder="Min 8 characters">
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Confirm Password</label>
+                        <input type="password" id="confirm-password" class="form-control" required placeholder="Repeat your password">
+                    </div>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary btn-lg">Register</button>
                     </div>
@@ -53,7 +57,13 @@
             const name = document.getElementById('name').value;
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
             const messageDiv = document.getElementById('message');
+
+            if (password !== confirmPassword) {
+                messageDiv.innerHTML = `<div class="alert alert-danger">Passwords do not match.</div>`;
+                return;
+            }
 
             messageDiv.innerHTML = '<div class="spinner-border spinner-border-sm text-primary"></div> Processing...';
 
@@ -71,8 +81,27 @@
                 }
 
                 if (response.ok) {
-                    messageDiv.innerHTML = `<div class="alert alert-success">${data.message || 'Registration successful!'}</div>`;
-                    e.target.reset();
+                    messageDiv.innerHTML = `<div class="alert alert-success">${data.message || 'Registration successful! Logging you in...'}</div>`;
+                    
+                    // Auto-login after registration
+                    try {
+                        const loginResponse = await fetch('/api/auth/login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email, password })
+                        });
+
+                        if (loginResponse.ok) {
+                            const loginData = await loginResponse.json();
+                            localStorage.setItem('token', loginData.token);
+                            setTimeout(() => window.location.href = '/', 1500);
+                        } else {
+                            // If auto-login fails for some reason, just go to login page
+                            setTimeout(() => window.location.href = '/login.html', 2000);
+                        }
+                    } catch (loginError) {
+                        setTimeout(() => window.location.href = '/login.html', 2000);
+                    }
                 } else {
                     let errorMessage = data.message || 'Registration failed. Please check your inputs.';
                     if (response.status === 429) {

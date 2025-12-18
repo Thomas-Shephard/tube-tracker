@@ -81,6 +81,10 @@
                                 <input type="password" id="new-password" class="form-control" required minlength="8">
                                 <div class="form-text">Must be at least 8 characters with a mix of letters, numbers & symbols.</div>
                             </div>
+                            <div class="mb-3">
+                                <label class="form-label">Confirm New Password</label>
+                                <input type="password" id="confirm-password" class="form-control" required>
+                            </div>
                             <div class="d-grid">
                                 <button type="submit" class="btn btn-primary" id="reset-btn">Update Password</button>
                             </div>
@@ -174,8 +178,14 @@
             e.preventDefault();
             const token = document.getElementById('reset-code').value;
             const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
             const btn = document.getElementById('reset-btn');
             const msg = document.getElementById('forgot-message');
+
+            if (newPassword !== confirmPassword) {
+                msg.innerHTML = `<div class="alert alert-danger">Passwords do not match.</div>`;
+                return;
+            }
 
             btn.disabled = true;
             msg.innerHTML = '<div class="spinner-border spinner-border-sm text-primary"></div> Updating...';
