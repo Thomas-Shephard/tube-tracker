@@ -34,7 +34,6 @@ public class UpdateTrackedStationController(ITrackedStationRepository trackedSta
         }
 
         trackedStation.Notify = request.Notify;
-        trackedStation.NotifyAccessibility = request.NotifyAccessibility;
         trackedStation.MinUrgency = request.MinUrgency;
         await trackedStationRepository.UpdateAsync(trackedStation);
 

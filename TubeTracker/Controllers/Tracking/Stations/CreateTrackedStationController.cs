@@ -38,7 +38,6 @@ public class CreateTrackedStationController(ITrackedStationRepository trackedSta
             UserId = userId.Value,
             StationId = request.StationId,
             Notify = request.Notify,
-            NotifyAccessibility = request.NotifyAccessibility,
             MinUrgency = request.MinUrgency,
             CreatedAt = DateTime.UtcNow
         };

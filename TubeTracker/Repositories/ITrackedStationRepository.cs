@@ -1,5 +1,6 @@
 using System.Data;
 using TubeTracker.API.Models.Entities;
+using TubeTracker.API.Models.Notifications;
 
 namespace TubeTracker.API.Repositories;
 
@@ -11,4 +12,6 @@ public interface ITrackedStationRepository
     Task UpdateAsync(TrackedStation trackedStation, IDbTransaction? transaction = null);
     Task DeleteAsync(int userId, int stationId, IDbTransaction? transaction = null);
     Task<IEnumerable<TrackedStation>> GetAllAsync();
+    Task<IEnumerable<StationNotificationModel>> GetPendingNotificationsAsync();
+    Task UpdateLastNotifiedAsync(int trackedStationId, int historyId, DateTime lastNotifiedAt);
 }

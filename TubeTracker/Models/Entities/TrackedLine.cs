@@ -8,5 +8,6 @@ public class TrackedLine
     public bool? Notify { get; set; }
     public int? MinUrgency { get; set; }
     public DateTime? LastNotifiedAt { get; set; }
+    public int? MaxNotifiedHistoryId { get; set; }
     public DateTime CreatedAt { get; init; }
 }

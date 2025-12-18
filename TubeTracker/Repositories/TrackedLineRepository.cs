@@ -1,6 +1,7 @@
 using System.Data;
 using Dapper;
 using TubeTracker.API.Models.Entities;
+using TubeTracker.API.Models.Notifications;
 
 namespace TubeTracker.API.Repositories;
 
@@ -40,5 +41,38 @@ public class TrackedLineRepository(IDbConnection connection) : ITrackedLineRepos
     {
         const string query = "SELECT * FROM TrackedLine";
         return await connection.QueryAsync<TrackedLine>(query);
+    }
+
+    public async Task<IEnumerable<LineNotificationModel>> GetPendingNotificationsAsync()
+    {
+        const string query = """
+                             SELECT 
+                                 tl.tracked_line_id AS TrackedLineId,
+                                 lsh.history_id AS HistoryId,
+                                 u.email AS UserEmail,
+                                 u.name AS UserName,
+                                 l.name AS LineName,
+                                 ss.description AS StatusDescription,
+                                 lsh.first_reported_at AS ReportedAt
+                             FROM TrackedLine tl
+                             JOIN User u ON tl.user_id = u.user_id
+                             JOIN Line l ON tl.line_id = l.line_id
+                             JOIN LineStatusHistory lsh ON l.line_id = lsh.line_id
+                             JOIN StatusSeverity ss ON lsh.status_severity = ss.severity_level
+                             WHERE tl.notify = 1
+                               AND u.is_verified = 1
+                               AND lsh.last_reported_at > DATE_SUB(NOW(), INTERVAL 15 MINUTE)
+                               AND (max_notified_history_id IS NULL OR lsh.history_id > max_notified_history_id)
+                               AND lsh.first_reported_at > IFNULL(tl.last_notified_at, tl.created_at)
+                               AND ss.urgency >= tl.min_urgency
+                             """;
+
+        return await connection.QueryAsync<LineNotificationModel>(query);
+    }
+
+    public async Task UpdateLastNotifiedAsync(int trackedLineId, int historyId, DateTime lastNotifiedAt)
+    {
+        const string query = "UPDATE TrackedLine SET last_notified_at = @LastNotifiedAt, last_notified_history_id = @HistoryId WHERE tracked_line_id = @TrackedLineId";
+        await connection.ExecuteAsync(query, new { TrackedLineId = trackedLineId, HistoryId = historyId, LastNotifiedAt = lastNotifiedAt });
     }
 }

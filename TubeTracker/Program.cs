@@ -44,9 +44,9 @@ public static class Program
         // Configure Settings
         DatabaseSettings dbSettings = builder.Services.AddAndConfigureFromEnv<DatabaseSettings>(builder.Configuration, "DB");
         JwtSettings jwtSettings = builder.Services.AddAndConfigureFromEnv<JwtSettings>(builder.Configuration, "JWT");
-        TflSettings tflSettings = builder.Services.AddAndConfigureFromEnv<TflSettings>(builder.Configuration, "TFL");
+        builder.Services.AddAndConfigureFromEnv<TflSettings>(builder.Configuration, "TFL");
         TokenDenySettings tokenDenySettings = builder.Services.AddAndConfigure<TokenDenySettings>(builder.Configuration, "TokenDenySettings");
-        StatusBackgroundSettings statusBackgroundSettings = builder.Services.AddAndConfigure<StatusBackgroundSettings>(builder.Configuration, "StatusBackgroundSettings");
+        builder.Services.AddAndConfigure<StatusBackgroundSettings>(builder.Configuration, "StatusBackgroundSettings");
 
         // Register Database Connection
         builder.Services.AddScoped<IDbConnection>(_ =>
@@ -90,6 +90,7 @@ public static class Program
         builder.Services.AddHostedService<EmailBackgroundService>();
         builder.Services.AddHostedService<TubeStatusBackgroundService>();
         builder.Services.AddHostedService<TubeMetadataBackgroundService>();
+        builder.Services.AddHostedService<NotificationBackgroundService>();
 
         // Register background services/handlers that use TimeProvider
         builder.Services.AddSingleton(TimeProvider.System); // Register TimeProvider for consistency
