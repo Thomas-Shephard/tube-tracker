@@ -14,6 +14,9 @@ function updateNavbar() {
     if (isLoggedIn()) {
         navItems.innerHTML = `
             <li class="nav-item">
+                <a class="nav-link" href="/">Dashboard</a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link" href="/tracking.html">Manage Tracking</a>
             </li>
             <li class="nav-item">
@@ -26,7 +29,7 @@ function updateNavbar() {
     } else {
         navItems.innerHTML = `
             <li class="nav-item">
-                <a class="nav-link" href="#status">Live Status</a>
+                <a class="nav-link" href="/#status">Live Status</a>
             </li>
             <li class="nav-item">
                 <a class="nav-link btn btn-outline-light ms-lg-3 px-4" href="/login.html">Login</a>

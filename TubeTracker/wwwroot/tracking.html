@@ -18,9 +18,9 @@
         }
         .settings-panel {
             font-size: 0.85rem;
-            background: rgba(0,0,0,0.02);
+            background: rgba(0,0,0,0.03);
             border-radius: 8px;
-            padding: 10px;
+            padding: 12px;
         }
     </style>
 </head>
@@ -28,11 +28,12 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark sticky-top">
         <div class="container">
             <a class="navbar-brand" href="/">Tube Tracker</a>
-            <div class="collapse navbar-collapse">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link" href="/">Dashboard</a></li>
-                    <li class="nav-item"><a class="nav-link" href="/account.html">Account</a></li>
-                    <li class="nav-item"><a class="nav-link btn btn-outline-light ms-lg-3 px-4" href="#" onclick="logout()">Logout</a></li>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto" id="nav-items">
+                    <!-- Nav items injected by app.js -->
                 </ul>
             </div>
         </div>
@@ -76,8 +77,8 @@
                     </div>
                 </div>
                 <div class="row g-4" id="stations-list">
-                    <div class="col-12 text-center py-5">
-                        <p class="text-muted">Enter a station name to start tracking.</p>
+                    <div class="col-12 text-center py-5 text-muted">
+                        Enter at least 2 characters to search...
                     </div>
                 </div>
             </div>
@@ -86,12 +87,20 @@
 
     <script src="js/app.js"></script>
     <script>
+        document.addEventListener('DOMContentLoaded', updateNavbar);
         if (!isLoggedIn()) window.location.href = '/login.html';
 
         let allLines = [];
         let trackedLines = [];
         let allStations = [];
         let trackedStations = [];
+
+        const urgencyLevels = [
+            { val: 0, label: 'Good' },
+            { val: 1, label: 'Minor' },
+            { val: 2, label: 'Severe' },
+            { val: 3, label: 'Critical' }
+        ];
 
         async function init() {
             try {
@@ -125,16 +134,14 @@
                 if (tracked) {
                     settingsHtml = `
                         <div class="settings-panel mt-3">
-                            <div class="form-check form-switch mb-2">
+                            <div class="form-check form-switch mb-3">
                                 <input class="form-check-input" type="checkbox" id="notify-line-${line.lineId}" ${tracked.notify ? 'checked' : ''} onchange="updateLineSettings(${line.lineId})">
                                 <label class="form-check-label" for="notify-line-${line.lineId}">Email Notifications</label>
                             </div>
-                            <label class="form-label mb-1">Min Urgency: <span id="val-line-${line.lineId}">${tracked.minUrgency}</span></label>
-                            <input type="range" class="form-range" min="0" max="10" step="1" id="urgency-line-${line.lineId}" value="${tracked.minUrgency}" oninput="document.getElementById('val-line-${line.lineId}').innerText = this.value" onchange="updateLineSettings(${line.lineId})">
-                            <div class="d-flex justify-content-between x-small text-muted" style="font-size: 0.7rem;">
-                                <span>High (0)</span>
-                                <span>Low (10)</span>
-                            </div>
+                            <label class="form-label x-small text-muted mb-1">Minimum Alert Urgency</label>
+                            <select class="form-select form-select-sm" id="urgency-line-${line.lineId}" onchange="updateLineSettings(${line.lineId})">
+                                ${urgencyLevels.map(u => `<option value="${u.val}" ${tracked.minUrgency === u.val ? 'selected' : ''}>${u.label}</option>`).join('')}
+                            </select>
                         </div>
                     `;
                 }
@@ -142,7 +149,7 @@
                 col.innerHTML = `
                     <div class="card h-100 shadow-sm tracking-card ${tracked ? 'active' : ''}">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="d-flex justify-content-between align-items-center">
                                 <h5 class="card-title fw-bold mb-0">${line.name}</h5>
                                 <button class="btn btn-sm ${tracked ? 'btn-danger' : 'btn-primary'}" 
                                     onclick="toggleLine(${line.lineId}, ${!!tracked})">
@@ -172,7 +179,7 @@
 
         async function toggleLine(lineId, currentlyTracked) {
             const method = currentlyTracked ? 'DELETE' : 'POST';
-            const url = `/api/tracking/lines${currentlyTracked ? '/' + lineId : ''}`;
+            const url = currentlyTracked ? `/api/tracking/lines/${lineId}` : `/api/tracking/lines`;
             
             try {
                 const res = await fetch(url, {
@@ -192,16 +199,11 @@
             const container = document.getElementById('stations-list');
             const search = document.getElementById('station-search').value.toLowerCase();
             
-            if (search.length < 2 && trackedStations.length === 0) {
-                container.innerHTML = '<div class="col-12 text-center py-5 text-muted">Enter at least 2 characters to search...</div>';
-                return;
-            }
-
-            // Show tracked stations first, then search results
-            let displayStations = [...trackedStations.map(ts => {
+            // Collect all stations to show: currently tracked ones + search results
+            let displayStations = trackedStations.map(ts => {
                 const s = allStations.find(as => as.stationId === ts.stationId);
                 return s ? { ...s, isTracked: true, ...ts } : null;
-            }).filter(s => s)];
+            }).filter(s => s);
 
             if (search.length >= 2) {
                 const searchResults = allStations
@@ -210,6 +212,11 @@
                     .sort((a,b) => a.commonName.localeCompare(b.commonName))
                     .slice(0, 20);
                 displayStations = [...displayStations, ...searchResults];
+            }
+
+            if (displayStations.length === 0) {
+                container.innerHTML = '<div class="col-12 text-center py-5 text-muted">' + (search.length < 2 ? 'Enter at least 2 characters to search...' : 'No stations found.') + '</div>';
+                return;
             }
 
             container.innerHTML = '';
@@ -222,10 +229,14 @@
                 if (tracked) {
                     settingsHtml = `
                         <div class="settings-panel mt-3">
-                            <div class="form-check form-switch mb-2">
+                            <div class="form-check form-switch mb-3">
                                 <input class="form-check-input" type="checkbox" id="notify-station-${station.stationId}" ${tracked.notify ? 'checked' : ''} onchange="updateStationSettings(${station.stationId})">
                                 <label class="form-check-label" for="notify-station-${station.stationId}">Email Notifications</label>
                             </div>
+                            <label class="form-label x-small text-muted mb-1">Minimum Alert Urgency</label>
+                            <select class="form-select form-select-sm" id="urgency-station-${station.stationId}" onchange="updateStationSettings(${station.stationId})">
+                                ${urgencyLevels.map(u => `<option value="${u.val}" ${tracked.minUrgency === u.val ? 'selected' : ''}>${u.label}</option>`).join('')}
+                            </select>
                         </div>
                     `;
                 }
@@ -233,14 +244,15 @@
                 col.innerHTML = `
                     <div class="card h-100 shadow-sm tracking-card ${tracked ? 'active' : ''}">
                         <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
                                 <h6 class="card-title fw-bold mb-0">${station.commonName}</h6>
                                 <button class="btn btn-xs ${tracked ? 'btn-outline-danger' : 'btn-outline-primary'}" 
+                                    style="padding: 0.2rem 0.4rem; font-size: 0.75rem;"
                                     onclick="toggleStation(${station.stationId}, ${!!tracked})">
                                     ${tracked ? 'Untrack' : 'Track'}
                                 </button>
                             </div>
-                            <small class="text-muted d-block mb-1">${station.tflId}</small>
+                            <small class="text-muted d-block" style="font-size: 0.7rem;">${station.tflId}</small>
                             ${settingsHtml}
                         </div>
                     </div>
@@ -251,25 +263,26 @@
 
         async function updateStationSettings(stationId) {
             const notify = document.getElementById(`notify-station-${stationId}`).checked;
+            const minUrgency = parseInt(document.getElementById(`urgency-station-${stationId}`).value);
             
             try {
                 await fetch('/api/tracking/stations', {
                     method: 'PUT',
                     headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ stationId, notify })
+                    body: JSON.stringify({ stationId, notify, minUrgency })
                 });
             } catch (err) { console.error(err); }
         }
 
         async function toggleStation(stationId, currentlyTracked) {
             const method = currentlyTracked ? 'DELETE' : 'POST';
-            const url = `/api/tracking/stations${currentlyTracked ? '/' + stationId : ''}`;
+            const url = currentlyTracked ? `/api/tracking/stations/${stationId}` : `/api/tracking/stations`;
             
             try {
                 const res = await fetch(url, {
                     method: method,
                     headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
-                    body: currentlyTracked ? null : JSON.stringify({ stationId, notify: true })
+                    body: currentlyTracked ? null : JSON.stringify({ stationId, notify: true, minUrgency: 2 })
                 });
                 if (res.ok) {
                     const updatedTracked = await fetch('/api/tracking/stations', { headers: getAuthHeader() });
