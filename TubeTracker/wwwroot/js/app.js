@@ -178,7 +178,7 @@ function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlag
     const bell = isFlagged ? '<i class="bi bi-bell-fill text-warning me-2" title="Matches your notification settings"></i>' : '';
     return `
         <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'border-warning shadow' : ''}">
+            <div class="card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'flagged' : ''}">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h5 class="card-title fw-bold mb-0">${bell}${name}</h5>
