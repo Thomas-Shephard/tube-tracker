@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 using TubeTracker.API.Models.Entities;
 using TubeTracker.API.Repositories;
 using TubeTracker.API.Settings;
@@ -9,11 +10,13 @@ public class TokenDenyService : TimedBackgroundService, ITokenDenyService
 {
     private readonly ConcurrentDictionary<string, DateTime> _denylist = new();
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<TokenDenyService> _logger;
     private readonly Task _initializationTask;
 
-    public TokenDenyService(TokenDenySettings settings, TimeProvider timeProvider, IServiceScopeFactory scopeFactory) : base(timeProvider)
+    public TokenDenyService(TokenDenySettings settings, TimeProvider timeProvider, IServiceScopeFactory scopeFactory, ILogger<TokenDenyService> logger) : base(timeProvider)
     {
         _scopeFactory = scopeFactory;
+        _logger = logger;
 
         _initializationTask = LoadDeniedTokensFromDbAsync();
 
@@ -36,6 +39,7 @@ public class TokenDenyService : TimedBackgroundService, ITokenDenyService
         await tokenDenyRepository.DenyTokenAsync(deniedToken);
 
         _denylist.TryAdd(jti, expiresAt);
+        _logger.LogInformation("Token {Jti} denied until {ExpiresAt}", jti, expiresAt);
     }
 
     public async Task<bool> IsDeniedAsync(string jti)
@@ -59,23 +63,38 @@ public class TokenDenyService : TimedBackgroundService, ITokenDenyService
             using IServiceScope scope = _scopeFactory.CreateScope();
             ITokenDenyRepository tokenDenyRepository = scope.ServiceProvider.GetRequiredService<ITokenDenyRepository>();
             await tokenDenyRepository.DeleteExpiredTokensAsync(now);
+
+            if (expiredTokensInMemory.Count > 0)
+            {
+                _logger.LogInformation("Cleaned up {Count} expired tokens from memory and database", expiredTokensInMemory.Count);
+            }
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            // Suppress the exception to prevent crashing the application, as this is an async void called by a TimerCallback
+            _logger.LogError(ex, "Error occurred during token cleanup");
         }
     }
 
     private async Task LoadDeniedTokensFromDbAsync()
     {
-        using IServiceScope scope = _scopeFactory.CreateScope();
-        ITokenDenyRepository tokenDenyRepository = scope.ServiceProvider.GetRequiredService<ITokenDenyRepository>();
-
-        DateTime now = TimeProvider.GetUtcNow().UtcDateTime;
-        IEnumerable<DeniedToken> deniedTokens = await tokenDenyRepository.GetActiveDeniedTokensAsync(now);
-        foreach (DeniedToken deniedToken in deniedTokens)
+        try
         {
-            _denylist.TryAdd(deniedToken.Jti, deniedToken.ExpiresAt);
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            ITokenDenyRepository tokenDenyRepository = scope.ServiceProvider.GetRequiredService<ITokenDenyRepository>();
+
+            DateTime now = TimeProvider.GetUtcNow().UtcDateTime;
+            IEnumerable<DeniedToken> deniedTokens = await tokenDenyRepository.GetActiveDeniedTokensAsync(now);
+            int count = 0;
+            foreach (DeniedToken deniedToken in deniedTokens)
+            {
+                _denylist.TryAdd(deniedToken.Jti, deniedToken.ExpiresAt);
+                count++;
+            }
+            _logger.LogInformation("Loaded {Count} active denied tokens from database", count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load denied tokens from database");
         }
     }
 }

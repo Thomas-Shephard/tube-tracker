@@ -11,7 +11,11 @@ namespace TubeTracker.API.Controllers.Auth;
 [ApiController]
 [Route("api/auth/forgot-password")]
 [Tags("Auth")]
-public class ForgotPasswordController(IUserRepository userRepository, IPasswordResetRepository passwordResetRepository, IEmailQueue emailQueue) : ControllerBase
+public class ForgotPasswordController(
+    IUserRepository userRepository,
+    IPasswordResetRepository passwordResetRepository,
+    IEmailQueue emailQueue,
+    ILogger<ForgotPasswordController> logger) : ControllerBase
 {
     private const string SuccessMessage = "If the email exists, a password reset token has been sent.";
 
@@ -31,10 +35,13 @@ public class ForgotPasswordController(IUserRepository userRepository, IPasswordR
 
         if (user is null)
         {
+            logger.LogInformation("Password reset requested for non-existent email: {Email}", requestModel.Email);
             return Ok(new { message = SuccessMessage });
         }
 
         await passwordResetRepository.CreateTokenAsync(user.UserId, hashedToken);
+
+        logger.LogInformation("Password reset token generated for user {UserId}", user.UserId);
 
         await emailQueue.QueueBackgroundEmailAsync(new EmailMessage(
             To: user.Email,

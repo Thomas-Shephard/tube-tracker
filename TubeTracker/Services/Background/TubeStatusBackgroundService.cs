@@ -5,7 +5,11 @@ using TubeTracker.API.Settings;
 
 namespace TubeTracker.API.Services.Background;
 
-public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactory, TimeProvider timeProvider, StatusBackgroundSettings settings) : BackgroundService
+public class TubeStatusBackgroundService(
+    IServiceScopeFactory serviceScopeFactory,
+    TimeProvider timeProvider,
+    StatusBackgroundSettings settings,
+    ILogger<TubeStatusBackgroundService> logger) : BackgroundService
 {
     private readonly TimeSpan _period = TimeSpan.FromMinutes(settings.RefreshIntervalMinutes);
 
@@ -24,6 +28,7 @@ public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactor
     {
         try
         {
+            logger.LogInformation("Fetching tube statuses...");
             using IServiceScope scope = serviceScopeFactory.CreateScope();
             ITflService tflService = scope.ServiceProvider.GetRequiredService<ITflService>();
             ILineRepository lineRepository = scope.ServiceProvider.GetRequiredService<ILineRepository>();
@@ -32,6 +37,7 @@ public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactor
             IStationStatusHistoryRepository stationHistoryRepository = scope.ServiceProvider.GetRequiredService<IStationStatusHistoryRepository>();
 
             List<TflLine> tflLines = await tflService.GetLineStatusesAsync();
+            logger.LogDebug("Fetched {Count} lines from TFL", tflLines.Count);
             IEnumerable<Line> dbLines = await lineRepository.GetAllAsync();
             Dictionary<string, int> lineMap = dbLines.ToDictionary(l => l.TflId, l => l.LineId);
 
@@ -44,7 +50,7 @@ public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactor
             {
                 if (!lineMap.TryGetValue(tflLine.Id, out int lineId))
                 {
-                    Console.WriteLine($"Line with TflId {tflLine.Id} not found in database. Skipping.");
+                    logger.LogWarning("Line with TflId {TflId} not found in database. Skipping.", tflLine.Id);
                     continue;
                 }
 
@@ -55,6 +61,7 @@ public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactor
             }
 
             List<TflStationDisruption> stationDisruptions = await tflService.GetStationDisruptionsAsync();
+            logger.LogDebug("Fetched {Count} station disruptions from TFL", stationDisruptions.Count);
             DateTime? lastStationReport = await stationHistoryRepository.GetLastReportTimeAsync();
             DateTime stationThreshold = lastStationReport.HasValue && (DateTime.UtcNow - lastStationReport.Value).TotalMinutes < 30
                 ? lastStationReport.Value.AddSeconds(-30)
@@ -77,14 +84,15 @@ public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactor
                     }
                     else
                     {
-                         Console.WriteLine($"Station disruption for {tflId} ({disruption.CommonName}) not found in database.");
+                        logger.LogWarning("Station disruption for {TflId} ({CommonName}) not found in database.", tflId, disruption.CommonName);
                     }
                 }
             }
+            logger.LogInformation("Tube status update completed.");
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Failed to update tube statuses: {e.Message}");
+            logger.LogError(e, "Failed to update tube statuses.");
         }
     }
 }

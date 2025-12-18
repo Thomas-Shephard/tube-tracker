@@ -4,7 +4,7 @@ using TubeTracker.API.Repositories;
 
 namespace TubeTracker.API.Services.Background;
 
-public class NotificationBackgroundService(IServiceScopeFactory serviceScopeFactory, TimeProvider timeProvider) : BackgroundService
+public class NotificationBackgroundService(IServiceScopeFactory serviceScopeFactory, TimeProvider timeProvider, ILogger<NotificationBackgroundService> logger) : BackgroundService
 {
     private readonly TimeSpan _period = TimeSpan.FromMinutes(5);
 
@@ -21,6 +21,7 @@ public class NotificationBackgroundService(IServiceScopeFactory serviceScopeFact
 
     private async Task ProcessNotificationsAsync()
     {
+        logger.LogInformation("Checking for pending notifications...");
         using IServiceScope scope = serviceScopeFactory.CreateScope();
         ITrackedLineRepository lineRepository = scope.ServiceProvider.GetRequiredService<ITrackedLineRepository>();
         ITrackedStationRepository stationRepository = scope.ServiceProvider.GetRequiredService<ITrackedStationRepository>();
@@ -33,13 +34,16 @@ public class NotificationBackgroundService(IServiceScopeFactory serviceScopeFact
 
             if (pendingLines.Count == 0 && pendingStations.Count == 0)
             {
+                logger.LogInformation("No pending notifications found.");
                 return;
             }
 
             // Group by UserEmail to send consolidated emails
             IEnumerable<string> userEmails = pendingLines.Select(n => n.UserEmail)
                                                          .Concat(pendingStations.Select(n => n.UserEmail))
-                                                         .Distinct();
+                                                         .Distinct().ToList();
+
+            logger.LogInformation("Found {LineCount} line alerts and {StationCount} station alerts for {UserCount} users.", pendingLines.Count, pendingStations.Count, userEmails.Count());
 
             foreach (string email in userEmails)
             {
@@ -94,10 +98,11 @@ public class NotificationBackgroundService(IServiceScopeFactory serviceScopeFact
                     await stationRepository.UpdateLastNotifiedAsync(group.Key, maxHistoryId, now);
                 }
             }
+            logger.LogInformation("Finished processing notifications.");
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Failed to process notifications: {e.Message}");
+            logger.LogError(e, "Failed to process notifications.");
         }
     }
 }

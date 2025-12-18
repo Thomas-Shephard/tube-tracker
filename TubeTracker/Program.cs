@@ -17,7 +17,7 @@ using TubeTracker.API.Settings;
 namespace TubeTracker.API;
 
 [ExcludeFromCodeCoverage]
-public static class Program
+public class Program
 {
     public static void Main(string[] args)
     {
@@ -94,7 +94,11 @@ public static class Program
 
         // Register background services/handlers that use TimeProvider
         builder.Services.AddSingleton(TimeProvider.System); // Register TimeProvider for consistency
-        builder.Services.AddSingleton<ITokenDenyService>(sp => new TokenDenyService(tokenDenySettings, TimeProvider.System, sp.GetRequiredService<IServiceScopeFactory>()));
+        builder.Services.AddSingleton<ITokenDenyService>(sp => new TokenDenyService(
+            tokenDenySettings,
+            TimeProvider.System,
+            sp.GetRequiredService<IServiceScopeFactory>(),
+            sp.GetRequiredService<ILogger<TokenDenyService>>()));
 
         // Configure JWT Authentication
         builder.Services.AddAuthentication(options =>
@@ -133,6 +137,25 @@ public static class Program
         WebApplication app = builder.Build();
 
         app.UseForwardedHeaders();
+
+        app.UseExceptionHandler(exceptionHandlerApp =>
+        {
+            exceptionHandlerApp.Run(async context =>
+            {
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                context.Response.ContentType = "application/json";
+
+                ILogger<Program> logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+                Exception? exception = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
+
+                if (exception is not null)
+                {
+                    logger.LogError(exception, "An unhandled exception occurred during the request.");
+                }
+
+                await context.Response.WriteAsJsonAsync(new { message = "An internal server error occurred." });
+            });
+        });
 
         DatabaseMigrator.ApplyMigrations(dbSettings.ConnectionString);
 

@@ -14,12 +14,14 @@ public class SmtpEmailService : IEmailService
 
     private readonly EmailSettings _settings;
     private readonly ISmtpClientFactory _clientFactory;
+    private readonly ILogger<SmtpEmailService> _logger;
     private readonly string _template;
 
-    public SmtpEmailService(EmailSettings settings, ISmtpClientFactory clientFactory)
+    public SmtpEmailService(EmailSettings settings, ISmtpClientFactory clientFactory, ILogger<SmtpEmailService> logger)
     {
         _settings = settings;
         _clientFactory = clientFactory;
+        _logger = logger;
 
         string templatePath = Path.Combine(AppContext.BaseDirectory, TemplateDirectory, TemplateFileName);
         if (!File.Exists(templatePath))
@@ -57,5 +59,7 @@ public class SmtpEmailService : IEmailService
         await client.AuthenticateAsync(_settings.User, _settings.Password);
         await client.SendAsync(message);
         await client.DisconnectAsync(true);
+
+        _logger.LogInformation("Email sent successfully to {To} with subject {Subject}", to, subject);
     }
 }

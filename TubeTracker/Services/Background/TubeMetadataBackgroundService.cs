@@ -4,7 +4,7 @@ using TubeTracker.API.Repositories;
 
 namespace TubeTracker.API.Services.Background;
 
-public class TubeMetadataBackgroundService(IServiceScopeFactory serviceScopeFactory, TimeProvider timeProvider) : BackgroundService
+public class TubeMetadataBackgroundService(IServiceScopeFactory serviceScopeFactory, TimeProvider timeProvider, ILogger<TubeMetadataBackgroundService> logger) : BackgroundService
 {
     private readonly TimeSpan _period = TimeSpan.FromHours(24);
 
@@ -21,6 +21,7 @@ public class TubeMetadataBackgroundService(IServiceScopeFactory serviceScopeFact
 
     private async Task UpdateMetadataAsync()
     {
+        logger.LogInformation("Starting metadata update...");
         using IServiceScope scope = serviceScopeFactory.CreateScope();
         ITflService tflService = scope.ServiceProvider.GetRequiredService<ITflService>();
         ILineRepository lineRepository = scope.ServiceProvider.GetRequiredService<ILineRepository>();
@@ -29,6 +30,8 @@ public class TubeMetadataBackgroundService(IServiceScopeFactory serviceScopeFact
         try
         {
             List<TflLine> tflLines = await tflService.GetLineStatusesAsync();
+            int linesUpdated = 0;
+            int linesAdded = 0;
 
             foreach (TflLine tflLine in tflLines)
             {
@@ -44,6 +47,7 @@ public class TubeMetadataBackgroundService(IServiceScopeFactory serviceScopeFact
                         Colour = null
                     };
                     await lineRepository.AddAsync(newLine);
+                    linesAdded++;
                 }
                 else
                 {
@@ -52,10 +56,13 @@ public class TubeMetadataBackgroundService(IServiceScopeFactory serviceScopeFact
                     existingLine.Name = tflLine.Name;
                     existingLine.ModeName = tflLine.ModeName;
                     await lineRepository.UpdateAsync(existingLine);
+                    linesUpdated++;
                 }
             }
 
             List<TflStopPoint> tflStations = await tflService.GetStationsAsync();
+            int stationsUpdated = 0;
+            int stationsAdded = 0;
 
             string[] allowedStopTypes = ["NaptanMetroStation", "NaptanRailStation", "NaptanTrainStation", "NaptanDlrStation"];
 
@@ -78,6 +85,7 @@ public class TubeMetadataBackgroundService(IServiceScopeFactory serviceScopeFact
                         Lon = stopPoint.Lon
                     };
                     await stationRepository.AddAsync(newStation);
+                    stationsAdded++;
                 }
                 else
                 {
@@ -92,12 +100,14 @@ public class TubeMetadataBackgroundService(IServiceScopeFactory serviceScopeFact
                     existingStation.Lat = stopPoint.Lat;
                     existingStation.Lon = stopPoint.Lon;
                     await stationRepository.UpdateAsync(existingStation);
+                    stationsUpdated++;
                 }
             }
+            logger.LogInformation("Metadata update finished. Lines: {Added} added, {Updated} updated. Stations: {StationsAdded} added, {StationsUpdated} updated.", linesAdded, linesUpdated, stationsAdded, stationsUpdated);
         }
         catch (Exception e)
         {
-            Console.WriteLine($"Failed to update metadata: {e.Message}");
+            logger.LogError(e, "Failed to update metadata.");
         }
     }
 }

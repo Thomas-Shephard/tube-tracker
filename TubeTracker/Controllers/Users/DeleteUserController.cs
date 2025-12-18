@@ -11,7 +11,7 @@ namespace TubeTracker.API.Controllers.Users;
 [ApiController]
 [Route("api/user")]
 [Tags("User")]
-public class DeleteUserController(IUserRepository userRepository, ITokenDenyService tokenDenyService) : ControllerBase
+public class DeleteUserController(IUserRepository userRepository, ITokenDenyService tokenDenyService, ILogger<DeleteUserController> logger) : ControllerBase
 {
     [HttpDelete]
     [Authorize]
@@ -20,12 +20,14 @@ public class DeleteUserController(IUserRepository userRepository, ITokenDenyServ
         string? email = User.GetUserEmail();
         if (email is null)
         {
+            logger.LogWarning("Account deletion attempt with missing email claim.");
             return BadRequest("Token does not contain an email claim.");
         }
 
         User? user = await userRepository.GetUserByEmailAsync(email);
         if (user is null)
         {
+            logger.LogWarning("Account deletion attempt for non-existent user: {Email}", email);
             return NotFound(new { message = "User not found." });
         }
 
@@ -36,9 +38,12 @@ public class DeleteUserController(IUserRepository userRepository, ITokenDenyServ
         {
             DateTime jwtExpiryTime = DateTimeOffset.FromUnixTimeSeconds(expiresSeconds).UtcDateTime;
             await tokenDenyService.DenyAsync(jti, jwtExpiryTime);
+            logger.LogInformation("JTI {Jti} denied due to account deletion of {UserId}.", jti, user.UserId);
         }
 
         await userRepository.DeleteUserAsync(user.UserId);
+
+        logger.LogInformation("Account for user {UserId} ({Email}) deleted successfully.", user.UserId, email);
 
         return Ok(new { message = "Account deleted successfully." });
     }

@@ -12,7 +12,7 @@ namespace TubeTracker.API.Controllers.Users;
 [ApiController]
 [Route("api/user/resend-verification")]
 [Tags("User")]
-public class ResendVerificationController(IUserRepository userRepository, IUserVerificationRepository userVerificationRepository, IEmailQueue emailQueue) : ControllerBase
+public class ResendVerificationController(IUserRepository userRepository, IUserVerificationRepository userVerificationRepository, IEmailQueue emailQueue, ILogger<ResendVerificationController> logger) : ControllerBase
 {
     [HttpPost]
     [Authorize]
@@ -21,30 +21,36 @@ public class ResendVerificationController(IUserRepository userRepository, IUserV
         string? email = User.GetUserEmail();
         if (email is null)
         {
+            logger.LogWarning("Resend verification attempt with missing email claim.");
             return BadRequest("Token does not contain an email claim.");
         }
 
         User? user = await userRepository.GetUserByEmailAsync(email);
         if (user is null)
         {
+            logger.LogWarning("Resend verification attempt for non-existent user: {Email}", email);
             return NotFound(new { message = "User not found." });
         }
 
         if (user.IsVerified)
         {
+            logger.LogInformation("Resend verification attempt for already verified user {UserId}", user.UserId);
             return BadRequest(new { message = "Account is already verified." });
         }
 
         UserVerificationToken? lastToken = await userVerificationRepository.GetTokenByUserIdAsync(user.UserId);
         if (lastToken is not null && lastToken.CreatedAt > DateTime.UtcNow.AddMinutes(-5))
         {
-             return BadRequest(new { message = "Please wait 5 minutes before requesting a new verification code." });
+            logger.LogInformation("Resend verification rate limited for user {UserId}", user.UserId);
+            return BadRequest(new { message = "Please wait 5 minutes before requesting a new verification code." });
         }
 
         string token = RandomNumberGenerator.GetInt32(0, 999_999).ToString("D6");
         string hashedToken = PasswordUtils.HashPasswordWithSalt(token);
 
         await userVerificationRepository.CreateTokenAsync(user.UserId, hashedToken);
+
+        logger.LogInformation("New verification token generated and queued for user {UserId}", user.UserId);
 
         await emailQueue.QueueBackgroundEmailAsync(new EmailMessage(
             To: user.Email,

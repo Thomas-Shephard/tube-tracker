@@ -11,7 +11,11 @@ namespace TubeTracker.API.Controllers.Users;
 [ApiController]
 [Route("api/user/register")]
 [Tags("User")]
-public class RegisterUserController(IUserRepository userRepository, IUserVerificationRepository userVerificationRepository, IEmailQueue emailQueue) : ControllerBase
+public class RegisterUserController(
+    IUserRepository userRepository,
+    IUserVerificationRepository userVerificationRepository,
+    IEmailQueue emailQueue,
+    ILogger<RegisterUserController> logger) : ControllerBase
 {
     private const string SuccessMessage = "An account has been created successfully. Check your email for a verification code.";
 
@@ -29,14 +33,17 @@ public class RegisterUserController(IUserRepository userRepository, IUserVerific
         string hashedToken = PasswordUtils.HashPasswordWithSalt(token);
 
         User? existingUser = await userRepository.GetUserByEmailAsync(requestModel.Email);
-        if (existingUser is null)
+        if (existingUser is not null)
         {
+            logger.LogInformation("Registration attempt for existing email: {Email}", requestModel.Email);
             // Hide error message to prevent user enumeration
             return Ok(new { message = SuccessMessage });
         }
 
         int userId = await userRepository.CreateUserAsync(requestModel.Email, requestModel.Name, hashedPassword);
         await userVerificationRepository.CreateTokenAsync(userId, hashedToken);
+
+        logger.LogInformation("User {UserId} registered successfully with email {Email}", userId, requestModel.Email);
 
         await emailQueue.QueueBackgroundEmailAsync(new EmailMessage(
             To: requestModel.Email,

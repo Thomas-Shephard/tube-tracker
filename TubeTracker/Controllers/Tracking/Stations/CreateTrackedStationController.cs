@@ -10,7 +10,7 @@ namespace TubeTracker.API.Controllers.Tracking.Stations;
 [ApiController]
 [Route("api/tracking/stations")]
 [Tags("Tracking")]
-public class CreateTrackedStationController(ITrackedStationRepository trackedStationRepository) : ControllerBase
+public class CreateTrackedStationController(ITrackedStationRepository trackedStationRepository, ILogger<CreateTrackedStationController> logger) : ControllerBase
 {
     [HttpPost]
     [Authorize]
@@ -24,12 +24,14 @@ public class CreateTrackedStationController(ITrackedStationRepository trackedSta
         int? userId = User.GetUserId();
         if (userId is null)
         {
+            logger.LogWarning("Unauthorized attempt to create tracked station - missing userId.");
             return Unauthorized("Token does not contain a sub claim.");
         }
 
         TrackedStation? existingTrackedStation = await trackedStationRepository.GetAsync(userId.Value, request.StationId);
         if (existingTrackedStation is not null)
         {
+            logger.LogInformation("User {UserId} attempted to subscribe to already tracked station {StationId}", userId, request.StationId);
             return Conflict(new { message = "You are already subscribed to this station." });
         }
 
@@ -42,6 +44,8 @@ public class CreateTrackedStationController(ITrackedStationRepository trackedSta
             CreatedAt = DateTime.UtcNow
         };
         await trackedStationRepository.AddAsync(trackedStation);
+
+        logger.LogInformation("User {UserId} successfully subscribed to station {StationId}.", userId, request.StationId);
 
         return Ok(new { message = "Station subscription created successfully." });
     }

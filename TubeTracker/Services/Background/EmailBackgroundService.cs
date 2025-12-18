@@ -1,6 +1,6 @@
 namespace TubeTracker.API.Services.Background;
 
-public class EmailBackgroundService(IEmailQueue taskQueue, IServiceScopeFactory serviceScopeFactory) : BackgroundService
+public class EmailBackgroundService(IEmailQueue taskQueue, IServiceScopeFactory serviceScopeFactory, ILogger<EmailBackgroundService> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -9,6 +9,7 @@ public class EmailBackgroundService(IEmailQueue taskQueue, IServiceScopeFactory 
             try
             {
                 EmailMessage message = await taskQueue.DequeueAsync(stoppingToken);
+                logger.LogDebug("Processing background email to {To}", message.To);
 
                 using IServiceScope scope = serviceScopeFactory.CreateScope();
                 IEmailService emailService = scope.ServiceProvider.GetRequiredService<IEmailService>();
@@ -19,9 +20,9 @@ public class EmailBackgroundService(IEmailQueue taskQueue, IServiceScopeFactory 
             {
                 // Execution cancelled
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Ignored
+                logger.LogError(ex, "Error occurred while sending background email.");
             }
         }
     }

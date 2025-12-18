@@ -10,7 +10,11 @@ namespace TubeTracker.API.Controllers.Auth;
 [ApiController]
 [Route("api/auth/refresh")]
 [Tags("Auth")]
-public class RefreshController(IUserRepository userRepository, ITokenDenyService tokenDenyService, ITokenService tokenService) : ControllerBase
+public class RefreshController(
+    IUserRepository userRepository,
+    ITokenDenyService tokenDenyService,
+    ITokenService tokenService,
+    ILogger<RefreshController> logger) : ControllerBase
 {
     [HttpPost]
     [Authorize]
@@ -19,18 +23,21 @@ public class RefreshController(IUserRepository userRepository, ITokenDenyService
         string? jti = User.GetJti();
         if (jti is null)
         {
+            logger.LogWarning("Refresh attempt with missing JTI claim.");
             return BadRequest("Token does not contain a jti claim.");
         }
 
         DateTime? expiration = User.GetExpirationTime();
         if (expiration is null)
         {
+            logger.LogWarning("Refresh attempt with missing expiration claim for JTI: {Jti}", jti);
             return BadRequest("Token does not contain a valid expiration claim.");
         }
 
         string? email = User.GetUserEmail();
         if (email is null)
         {
+            logger.LogWarning("Refresh attempt with missing email claim for JTI: {Jti}", jti);
             return BadRequest("Token does not contain an email claim.");
         }
 
@@ -40,10 +47,13 @@ public class RefreshController(IUserRepository userRepository, ITokenDenyService
         User? user = await userRepository.GetUserByEmailAsync(email);
         if (user is null)
         {
+            logger.LogWarning("Refresh attempt for non-existent user: {Email}", email);
             return Unauthorized();
         }
 
         string tokenString = tokenService.GenerateToken(user);
+
+        logger.LogInformation("Token refreshed successfully for user {UserId}. Old JTI {Jti} denied.", user.UserId, jti);
 
         return Ok(new { Token = tokenString });
     }

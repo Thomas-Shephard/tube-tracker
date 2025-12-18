@@ -10,7 +10,7 @@ namespace TubeTracker.API.Controllers.Auth;
 [ApiController]
 [Route("api/auth/login")]
 [Tags("Auth")]
-public class LoginController(IUserRepository userRepository, ITokenService tokenService) : ControllerBase
+public class LoginController(IUserRepository userRepository, ITokenService tokenService, ILogger<LoginController> logger) : ControllerBase
 {
     [HttpPost]
     public async Task<IActionResult> Login([FromBody] LoginRequestModel requestModel)
@@ -28,6 +28,7 @@ public class LoginController(IUserRepository userRepository, ITokenService token
 
         if (!isPasswordCorrect)
         {
+            logger.LogWarning("Failed login attempt for email: {Email}", requestModel.Email);
             return Unauthorized();
         }
 
@@ -37,6 +38,8 @@ public class LoginController(IUserRepository userRepository, ITokenService token
         await userRepository.UpdateUserAsync(user);
 
         string tokenString = tokenService.GenerateToken(user);
+
+        logger.LogInformation("User {UserId} logged in successfully.", user.UserId);
 
         return Ok(new { Token = tokenString });
     }

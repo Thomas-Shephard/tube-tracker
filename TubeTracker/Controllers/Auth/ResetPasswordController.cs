@@ -10,7 +10,11 @@ namespace TubeTracker.API.Controllers.Auth;
 [ApiController]
 [Route("api/auth/reset-password")]
 [Tags("Auth")]
-public class ResetPasswordController(IDbConnection connection, IUserRepository userRepository, IPasswordResetRepository passwordResetRepository) : ControllerBase
+public class ResetPasswordController(
+    IDbConnection connection,
+    IUserRepository userRepository,
+    IPasswordResetRepository passwordResetRepository,
+    ILogger<ResetPasswordController> logger) : ControllerBase
 {
     private const string FailMessage = "Failed to reset password.";
 
@@ -28,6 +32,7 @@ public class ResetPasswordController(IDbConnection connection, IUserRepository u
             User? user = await userRepository.GetUserByEmailAsync(requestModel.Email, transaction);
             if (user == null)
             {
+                logger.LogWarning("Password reset attempt for non-existent email: {Email}", requestModel.Email);
                 return BadRequest(new { message = FailMessage });
             }
 
@@ -36,6 +41,7 @@ public class ResetPasswordController(IDbConnection connection, IUserRepository u
             if (passwordResetToken is null || passwordResetToken.IsUsed || passwordResetToken.IsRevoked || passwordResetToken.Expiration <= DateTime.UtcNow
                 || !PasswordUtils.VerifyPassword(requestModel.Token, passwordResetToken.TokenHash))
             {
+                logger.LogWarning("Invalid or expired password reset token used for email: {Email}", requestModel.Email);
                 return BadRequest(new { message = FailMessage });
             }
 
@@ -48,11 +54,13 @@ public class ResetPasswordController(IDbConnection connection, IUserRepository u
             await passwordResetRepository.UpdatePasswordResetTokenAsync(passwordResetToken, transaction);
 
             transaction.Commit();
+            logger.LogInformation("Password reset successfully for user {UserId}", user.UserId);
             return Ok(new { message = "Password has been reset successfully." });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             transaction.Rollback();
+            logger.LogError(ex, "Error occurred during password reset for email: {Email}", requestModel.Email);
             throw;
         }
     }
