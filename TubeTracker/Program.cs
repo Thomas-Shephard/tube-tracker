@@ -87,6 +87,7 @@ public static class Program
         // Register Background Services
         builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
         builder.Services.AddHostedService<EmailBackgroundService>();
+        builder.Services.AddHostedService<TubeMetadataBackgroundService>();
 
         // Register background services/handlers that use TimeProvider
         builder.Services.AddSingleton(TimeProvider.System); // Register TimeProvider for consistency
