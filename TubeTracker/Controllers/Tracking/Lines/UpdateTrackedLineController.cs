@@ -10,7 +10,7 @@ namespace TubeTracker.API.Controllers.Tracking.Lines;
 
 [ApiController]
 [Route("api/tracking/lines")]
-[Tags("Tracking")]
+[Tags("Tracking/Lines")]
 [RequireVerifiedAccount]
 public class UpdateTrackedLineController(ITrackedLineRepository trackedLineRepository, ILogger<UpdateTrackedLineController> logger) : ControllerBase
 {

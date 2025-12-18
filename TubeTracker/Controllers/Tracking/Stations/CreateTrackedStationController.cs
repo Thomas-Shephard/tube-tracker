@@ -10,7 +10,7 @@ namespace TubeTracker.API.Controllers.Tracking.Stations;
 
 [ApiController]
 [Route("api/tracking/stations")]
-[Tags("Tracking")]
+[Tags("Tracking/Stations")]
 [RequireVerifiedAccount]
 public class CreateTrackedStationController(ITrackedStationRepository trackedStationRepository, ILogger<CreateTrackedStationController> logger) : ControllerBase
 {
