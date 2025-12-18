@@ -44,7 +44,7 @@ public class TubeStatusBackgroundService(IServiceScopeFactory serviceScopeFactor
 
                 foreach (LineStatus status in tflLine.LineStatuses)
                 {
-                    await lineHistoryRepository.AddAsync(lineId, status.StatusSeverity, status.StatusSeverityDescription);
+                    await lineHistoryRepository.AddAsync(lineId, status.StatusSeverity);
                 }
             }
 
