@@ -116,15 +116,23 @@
                 <h2 class="fw-bold">Your Tracked Statuses</h2>
                 <p id="tracked-api-result" class="text-muted mb-0">Fetching your personalized updates...</p>
             </div>
-            
-            <h4 class="mb-3">Lines</h4>
-            <div class="row g-4 mb-4" id="tracked-line-list">
-                <!-- Tracked line cards -->
-            </div>
 
-            <h4 class="mb-3">Stations</h4>
-            <div class="row g-4" id="tracked-station-list">
-                <!-- Tracked station cards -->
+            <div id="tracked-unverified-msg" class="d-none">
+                <div class="alert alert-warning">
+                    Please <a href="/tracking.html" class="alert-link">verify your account</a> to see your tracked lines and stations.
+                </div>
+            </div>
+            
+            <div id="tracked-verified-content">
+                <h4 class="mb-3">Lines</h4>
+                <div class="row g-4 mb-4" id="tracked-line-list">
+                    <!-- Tracked line cards -->
+                </div>
+
+                <h4 class="mb-3">Stations</h4>
+                <div class="row g-4" id="tracked-station-list">
+                    <!-- Tracked station cards -->
+                </div>
             </div>
         </section>
 

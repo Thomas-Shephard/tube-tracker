@@ -22,6 +22,13 @@
         </div>
     </nav>
 
+    <div id="verification-banner" class="alert alert-warning border-0 rounded-0 text-center mb-0 d-none">
+        <div class="container">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            Your account is not verified. <a href="/tracking.html" class="alert-link">Verify now</a> to enable notifications and tracking.
+        </div>
+    </div>
+
     <div class="container mt-5 pb-5">
         <div class="row justify-content-center">
             <div class="col-md-8">
@@ -65,6 +72,11 @@
             if (!isLoggedIn()) {
                 window.location.href = '/login.html';
                 return;
+            }
+
+            const banner = document.getElementById('verification-banner');
+            if (banner && !isVerified()) {
+                banner.classList.remove('d-none');
             }
 
             const payload = getDecodedToken();

@@ -120,17 +120,24 @@ async function loadTubeStatus() {
 async function loadTrackedStatus() {
     if (!isLoggedIn()) return;
     
+    const trackedStatusSection = document.getElementById('tracked-status');
+    const unverifiedMsg = document.getElementById('tracked-unverified-msg');
+    const verifiedContent = document.getElementById('tracked-verified-content');
     const lineList = document.getElementById('tracked-line-list');
     const stationList = document.getElementById('tracked-station-list');
     const resultElement = document.getElementById('tracked-api-result');
     if (!lineList) return;
 
     if (!isVerified()) {
-        resultElement.innerText = "Verification required.";
-        lineList.innerHTML = '<div class="col-12"><div class="alert alert-warning">Please <a href="/tracking.html">verify your account</a> to see your tracked lines and stations.</div></div>';
-        stationList.innerHTML = '';
+        if (trackedStatusSection) trackedStatusSection.classList.remove('d-none');
+        if (unverifiedMsg) unverifiedMsg.classList.remove('d-none');
+        if (verifiedContent) verifiedContent.classList.add('d-none');
+        if (resultElement) resultElement.innerText = "Verification required.";
         return;
     }
+
+    if (unverifiedMsg) unverifiedMsg.classList.add('d-none');
+    if (verifiedContent) verifiedContent.classList.remove('d-none');
 
     try {
         const response = await fetch('/api/status/tracked', { headers: getAuthHeader() });
