@@ -2,6 +2,21 @@ function isLoggedIn() {
     return localStorage.getItem('token') !== null;
 }
 
+function isVerified() {
+    const token = localStorage.getItem('token');
+    if (!token) return false;
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload).is_verified === 'true';
+    } catch (e) {
+        return false;
+    }
+}
+
 function getAuthHeader() {
     const token = localStorage.getItem('token');
     return token ? { 'Authorization': `Bearer ${token}` } : {};
@@ -96,6 +111,13 @@ async function loadTrackedStatus() {
     const stationList = document.getElementById('tracked-station-list');
     const resultElement = document.getElementById('tracked-api-result');
     if (!lineList) return;
+
+    if (!isVerified()) {
+        resultElement.innerText = "Verification required.";
+        lineList.innerHTML = '<div class="col-12"><div class="alert alert-warning">Please <a href="/tracking.html">verify your account</a> to see your tracked lines and stations.</div></div>';
+        stationList.innerHTML = '';
+        return;
+    }
 
     try {
         const response = await fetch('/api/status/tracked', { headers: getAuthHeader() });
