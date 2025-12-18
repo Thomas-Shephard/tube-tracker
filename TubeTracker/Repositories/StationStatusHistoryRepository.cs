@@ -6,10 +6,10 @@ namespace TubeTracker.API.Repositories;
 
 public class StationStatusHistoryRepository(IDbConnection connection) : IStationStatusHistoryRepository
 {
-    public async Task AddAsync(StationStatusHistory stationStatusHistory)
+    public async Task AddAsync(int stationId, string statusDescription)
     {
-        const string query = "INSERT INTO StationStatusHistory (station_id, status_description, checked_at) VALUES (@StationId, @StatusDescription, @CheckedAt)";
-        await connection.ExecuteAsync(query, stationStatusHistory);
+        const string query = "INSERT INTO StationStatusHistory (station_id, status_description) VALUES (@StationId, @StatusDescription)";
+        await connection.ExecuteAsync(query, new { StationId = stationId, StatusDescription = statusDescription });
     }
 
     public async Task<StationStatusHistory?> GetLatestByStationIdAsync(int stationId)
