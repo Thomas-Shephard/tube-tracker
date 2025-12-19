@@ -61,6 +61,12 @@ function updateNavbar() {
     }
 }
 
+function joinList(list) {
+    if (list.length <= 1) return list[0] || "";
+    if (list.length === 2) return `${list[0]} & ${list[1]}`;
+    return list.slice(0, -1).join(", ") + ", & " + list[list.length - 1];
+}
+
 function formatSeverity(activeStatuses) {
     if (!activeStatuses || activeStatuses.length === 0) {
         return { display: "Good Service", full: "" };
@@ -72,25 +78,12 @@ function formatSeverity(activeStatuses) {
     );
 
     const descriptions = [...new Set(sorted.map(s => s.severity.description))];
-    
-    const joinList = (list) => {
-        if (list.length <= 1) return list[0] || "";
-        if (list.length === 2) return `${list[0]} & ${list[1]}`;
-        return list.slice(0, -1).join(", ") + ", & " + list[list.length - 1];
-    };
-
     const fullList = joinList(descriptions);
 
     if (descriptions.length === 2) {
-        return {
-            display: fullList,
-            full: ""
-        };
+        return { display: fullList, full: "" };
     } else if (descriptions.length > 2) {
-        return {
-            display: `${descriptions[0]} & More`,
-            full: fullList
-        };
+        return { display: `${descriptions[0]} & More`, full: fullList };
     }
     
     return { display: descriptions[0], full: "" };
@@ -269,9 +262,20 @@ async function loadTrackedStatus() {
     } catch (e) { console.error(e); }
 }
 
+function showStatusDetail(name, fullStatus) {
+    const modalLabel = document.getElementById('statusModalLabel');
+    const modalBody = document.getElementById('statusModalBody');
+    if (modalLabel && modalBody) {
+        modalLabel.innerText = `${name} - All Statuses`;
+        modalBody.innerText = fullStatus;
+        const modal = new bootstrap.Modal(document.getElementById('statusModal'));
+        modal.show();
+    }
+}
+
 function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlagged = false, fullStatus = "") {
     const bell = isFlagged ? '<i class="bi bi-bell-fill me-2" title="Matches your notification settings"></i>' : '';
-    const infoIcon = fullStatus ? ` <i class="bi bi-info-circle-fill ms-1" data-bs-toggle="tooltip" data-bs-title="${fullStatus}" style="cursor: help;"></i>` : '';
+    const infoIcon = fullStatus ? ` <i class="bi bi-info-circle-fill ms-1" data-bs-toggle="tooltip" data-bs-title="${fullStatus}" onclick="showStatusDetail('${name.replace(/'/g, "\\'")}', '${fullStatus.replace(/'/g, "\\'")}')" style="cursor: help;"></i>` : '';
     return `
         <div class="col-md-6 col-lg-4">
             <div class="card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'flagged' : ''}">
@@ -287,9 +291,12 @@ function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlag
     `;
 }
 
+let activeTooltips = [];
 function initTooltips() {
+    activeTooltips.forEach(t => t.dispose());
+    activeTooltips = [];
     const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-    [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+    activeTooltips = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 }
 
 // Global scope for onclick
