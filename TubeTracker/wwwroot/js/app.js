@@ -143,15 +143,17 @@ async function loadTubeStatus() {
                 const activeStatuses = line.statuses || [];
                 const { display: severityDescription, full: fullStatus } = formatSeverity(activeStatuses);
                 const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
+                const maxUrgency = activeStatuses.length ? Math.max(...activeStatuses.map(s => s.severity.urgency)) : 0;
                 
                 let badgeClass = "bg-success";
                 let statusClass = "status-good";
-                if (line.minSeverityId < 10 && line.minSeverityId > 5) {
-                    badgeClass = "bg-warning text-dark";
-                    statusClass = "status-minor";
-                } else if (line.minSeverityId <= 5) {
+                
+                if (maxUrgency >= 2) {
                     badgeClass = "bg-danger";
                     statusClass = "status-severe";
+                } else if (maxUrgency === 1) {
+                    badgeClass = "bg-warning text-dark";
+                    statusClass = "status-minor";
                 }
 
                 listContainer.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, false, fullStatus));
@@ -223,12 +225,20 @@ async function loadTrackedStatus() {
 
             sortedLines.forEach(line => {
                 const activeStatuses = line.statuses || [];
-                const minSeverityId = activeStatuses.length ? Math.min(...activeStatuses.map(s => s.severity.severityLevel)) : 10;
                 const { display: severityDescription, full: fullStatus } = formatSeverity(activeStatuses);
                 const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
+                const maxUrgency = line.maxUrgency || 0;
                 
-                let badgeClass = minSeverityId < 10 ? (minSeverityId <= 5 ? "bg-danger" : "bg-warning text-dark") : "bg-success";
-                let statusClass = minSeverityId < 10 ? (minSeverityId <= 5 ? "status-severe" : "status-minor") : "status-good";
+                let badgeClass = "bg-success";
+                let statusClass = "status-good";
+                
+                if (maxUrgency >= 2) {
+                    badgeClass = "bg-danger";
+                    statusClass = "status-severe";
+                } else if (maxUrgency === 1) {
+                    badgeClass = "bg-warning text-dark";
+                    statusClass = "status-minor";
+                }
                 
                 lineList.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged, fullStatus));
             });
@@ -305,6 +315,294 @@ window.isLoggedIn = isLoggedIn;
 window.isVerified = isVerified;
 window.getAuthHeader = getAuthHeader;
 window.updateNavbar = updateNavbar;
+window.showStatusDetail = showStatusDetail;
+
+// Tracking Page Logic
+let allLines = [];
+let trackedLines = [];
+let allStations = [];
+let trackedStations = [];
+
+const urgencyLevels = [
+    { val: 0, label: 'Good' },
+    { val: 1, label: 'Minor' },
+    { val: 2, label: 'Severe' },
+    { val: 3, label: 'Critical' }
+];
+
+async function initTracking() {
+    try {
+        const [linesRes, trackedLinesRes, stationsRes, trackedStationsRes] = await Promise.all([
+            fetch('/api/lines'),
+            fetch('/api/tracking/lines', { headers: getAuthHeader() }),
+            fetch('/api/stations'),
+            fetch('/api/tracking/stations', { headers: getAuthHeader() })
+        ]);
+
+        allLines = await linesRes.json();
+        trackedLines = await trackedLinesRes.json();
+        allStations = await stationsRes.json();
+        trackedStations = await trackedStationsRes.json();
+
+        renderLines();
+        renderStations();
+    } catch (err) { console.error("Tracking init error:", err); }
+}
+
+function renderLines() {
+    const container = document.getElementById('lines-list');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    allLines.sort((a,b) => a.name.localeCompare(b.name)).forEach(line => {
+        const tracked = trackedLines.find(tl => tl.lineId === line.lineId);
+        const col = document.createElement('div');
+        col.className = 'col-md-6 col-lg-4';
+        
+        let settingsHtml = '';
+        if (tracked) {
+            settingsHtml = `
+                <div class="settings-panel mt-3">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="notify-line-${line.lineId}" ${tracked.notify ? 'checked' : ''} onchange="updateLineSettings(${line.lineId})">
+                        <label class="form-check-label" for="notify-line-${line.lineId}">Email Notifications</label>
+                    </div>
+                    <label class="form-label x-small text-muted mb-1">Minimum Alert Urgency</label>
+                    <select class="form-select form-select-sm" id="urgency-line-${line.lineId}" onchange="updateLineSettings(${line.lineId})">
+                        ${urgencyLevels.map(u => `<option value="${u.val}" ${tracked.minUrgency === u.val ? 'selected' : ''}>${u.label}</option>`).join('')}
+                    </select>
+                </div>
+            `;
+        }
+
+        col.innerHTML = `
+            <div class="card h-100 shadow-sm tracking-card ${tracked ? 'active' : ''}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title fw-bold mb-0">${line.name}</h5>
+                        <button class="btn btn-sm ${tracked ? 'btn-danger' : 'btn-primary'}" 
+                            onclick="toggleLine(${line.lineId}, ${!!tracked})">
+                            ${tracked ? '<i class="bi bi-dash-circle me-1"></i>Untrack' : '<i class="bi bi-plus-circle me-1"></i>Track'}
+                        </button>
+                    </div>
+                    ${settingsHtml}
+                </div>
+            </div>
+        `;
+        container.appendChild(col);
+    });
+}
+
+async function updateLineSettings(lineId) {
+    const notify = document.getElementById(`notify-line-${lineId}`).checked;
+    const minUrgency = parseInt(document.getElementById(`urgency-line-${lineId}`).value);
+    
+    try {
+        await fetch('/api/tracking/lines', {
+            method: 'PUT',
+            headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lineId, notify, minUrgency })
+        });
+    } catch (err) { console.error(err); }
+}
+
+async function toggleLine(lineId, currentlyTracked) {
+    const method = currentlyTracked ? 'DELETE' : 'POST';
+    const url = currentlyTracked ? `/api/tracking/lines/${lineId}` : `/api/tracking/lines`;
+    
+    try {
+        const res = await fetch(url, {
+            method: method,
+            headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+            body: currentlyTracked ? null : JSON.stringify({ lineId, notify: true, minUrgency: 2 })
+        });
+        if (res.ok) {
+            const updatedTracked = await fetch('/api/tracking/lines', { headers: getAuthHeader() });
+            trackedLines = await updatedTracked.json();
+            renderLines();
+        }
+    } catch (err) { console.error(err); }
+}
+
+function renderStations() {
+    const container = document.getElementById('stations-list');
+    if (!container) return;
+    const searchInput = document.getElementById('station-search');
+    const search = searchInput ? searchInput.value.toLowerCase() : '';
+    
+    let displayStations = trackedStations.map(ts => {
+        const s = allStations.find(as => as.stationId === ts.stationId);
+        return s ? { ...s, isTracked: true, ...ts } : null;
+    }).filter(s => s);
+
+    if (search.length >= 2) {
+        const searchResults = allStations
+            .filter(s => s.commonName.toLowerCase().includes(search))
+            .filter(s => !displayStations.some(ds => ds.stationId === s.stationId))
+            .sort((a,b) => a.commonName.localeCompare(b.commonName))
+            .slice(0, 20);
+        displayStations = [...displayStations, ...searchResults];
+    }
+
+    if (displayStations.length === 0) {
+        container.innerHTML = '<div class="col-12 text-center py-5 text-muted">' + (search.length < 2 ? 'Enter at least 2 characters to search...' : 'No stations found.') + '</div>';
+        return;
+    }
+
+    container.innerHTML = '';
+    displayStations.forEach(station => {
+        const tracked = trackedStations.find(ts => ts.stationId === station.stationId);
+        const col = document.createElement('div');
+        col.className = 'col-md-6 col-lg-4';
+        
+        let settingsHtml = '';
+        if (tracked) {
+            settingsHtml = `
+                <div class="settings-panel mt-3">
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" id="notify-station-${station.stationId}" ${tracked.notify ? 'checked' : ''} onchange="updateStationSettings(${station.stationId})">
+                        <label class="form-check-label" for="notify-station-${station.stationId}">Email Notifications</label>
+                    </div>
+                </div>
+            `;
+        }
+
+        col.innerHTML = `
+            <div class="card h-100 shadow-sm tracking-card ${tracked ? 'active' : ''}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <h6 class="card-title fw-bold mb-0">${station.commonName}</h6>
+                        <button class="btn btn-sm ${tracked ? 'btn-danger' : 'btn-primary'}" 
+                            onclick="toggleStation(${station.stationId}, ${!!tracked})">
+                            ${tracked ? '<i class="bi bi-dash-circle me-1"></i>Untrack' : '<i class="bi bi-plus-circle me-1"></i>Track'}
+                        </button>
+                    </div>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">${station.tflId}</small>
+                    ${settingsHtml}
+                </div>
+            </div>
+        `;
+        container.appendChild(col);
+    });
+}
+
+async function updateStationSettings(stationId) {
+    const notify = document.getElementById(`notify-station-${stationId}`).checked;
+    
+    try {
+        await fetch('/api/tracking/stations', {
+            method: 'PUT',
+            headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stationId, notify })
+        });
+    } catch (err) { console.error(err); }
+}
+
+async function toggleStation(stationId, currentlyTracked) {
+    const method = currentlyTracked ? 'DELETE' : 'POST';
+    const url = currentlyTracked ? `/api/tracking/stations/${stationId}` : `/api/tracking/stations`;
+    
+    try {
+        const res = await fetch(url, {
+            method: method,
+            headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+            body: currentlyTracked ? null : JSON.stringify({ stationId, notify: true, minUrgency: 2 })
+        });
+        if (res.ok) {
+            const updatedTracked = await fetch('/api/tracking/stations', { headers: getAuthHeader() });
+            trackedStations = await updatedTracked.json();
+            renderStations();
+        }
+    } catch (err) { console.error(err); }
+}
+
+async function verifyAccount() {
+    const codeInput = document.getElementById('verify-code');
+    const code = codeInput ? codeInput.value : '';
+    const btn = document.getElementById('verify-btn');
+    
+    if (!code || code.length !== 6) {
+        showVerifyAlert('Please enter a 6-digit code.', 'danger');
+        return;
+    }
+
+    if (btn) btn.disabled = true;
+    try {
+        const res = await fetch('/api/user/verify', {
+            method: 'POST',
+            headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
+            body: JSON.stringify(code)
+        });
+        const data = await res.json();
+        
+        if (res.ok) {
+            showVerifyAlert('Account verified! Refreshing your session...', 'success');
+            
+            const refreshRes = await fetch('/api/auth/refresh', {
+                method: 'POST',
+                headers: getAuthHeader()
+            });
+
+            if (refreshRes.ok) {
+                const refreshData = await refreshRes.json();
+                const newToken = refreshData.token || refreshData.Token;
+                if (newToken) {
+                    localStorage.setItem('token', newToken);
+                    setTimeout(() => window.location.reload(), 1500);
+                    return;
+                }
+            }
+            
+            showVerifyAlert('Verified! Please log in again to continue.', 'success');
+            setTimeout(() => logout(), 2000);
+        } else {
+            showVerifyAlert(data.message || 'Verification failed.', 'danger');
+            if (btn) btn.disabled = false;
+        }
+    } catch (err) {
+        showVerifyAlert('An error occurred.', 'danger');
+        if (btn) btn.disabled = false;
+    }
+}
+
+async function resendCode() {
+    const link = document.getElementById('resend-link');
+    const spinner = document.getElementById('resend-spinner');
+    
+    if (link) link.classList.add('d-none');
+    if (spinner) spinner.classList.remove('d-none');
+    
+    try {
+        const res = await fetch('/api/user/resend-verification', {
+            method: 'POST',
+            headers: getAuthHeader()
+        });
+        const data = await res.json();
+        showVerifyAlert(data.message, res.ok ? 'success' : 'danger');
+    } catch (err) {
+        showVerifyAlert('Failed to resend code.', 'danger');
+    } finally {
+        if (link) link.classList.remove('d-none');
+        if (spinner) spinner.classList.add('d-none');
+    }
+}
+
+function showVerifyAlert(msg, type) {
+    const alert = document.getElementById('verify-alert');
+    if (alert) {
+        alert.className = `alert alert-${type}`;
+        alert.innerText = msg;
+        alert.classList.remove('d-none');
+    }
+}
+
+// Expose to window
+window.verifyAccount = verifyAccount;
+window.resendCode = resendCode;
+window.toggleLine = toggleLine;
+window.updateLineSettings = updateLineSettings;
+window.toggleStation = toggleStation;
+window.updateStationSettings = updateStationSettings;
 
 async function refreshTokenIfOld() {
     const payload = getDecodedToken();
@@ -340,18 +638,57 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (isLoggedIn()) {
         refreshTokenIfOld();
+
+        // Handle Tracking Page
+        if (document.getElementById('tracking-content')) {
+            if (!isVerified()) {
+                document.getElementById('tracking-content').classList.add('d-none');
+                document.getElementById('unverified-prompt').classList.remove('d-none');
+            } else {
+                initTracking();
+                
+                const searchInput = document.getElementById('station-search');
+                if (searchInput) {
+                    searchInput.addEventListener('input', renderStations);
+                }
+
+                // Handle deep linking to tabs
+                const hash = window.location.hash;
+                if (hash === '#stations') {
+                    const stationsTab = document.getElementById('stations-tab');
+                    if (stationsTab) stationsTab.click();
+                } else if (hash === '#lines') {
+                    const linesTab = document.getElementById('lines-tab');
+                    if (linesTab) linesTab.click();
+                }
+            }
+        }
+
+        // Handle Verification Banner
         const banner = document.getElementById('verification-banner');
         if (banner && !isVerified()) {
             banner.classList.remove('d-none');
         }
 
-        document.getElementById('tracked-status').classList.remove('d-none');
-        document.getElementById('status-title').innerText = "All Line Statuses";
-        loadTrackedStatus();
-        setInterval(loadTrackedStatus, 60000);
+        // Handle Dashboard
+        const trackedStatus = document.getElementById('tracked-status');
+        if (trackedStatus) {
+            trackedStatus.classList.remove('d-none');
+            const statusTitle = document.getElementById('status-title');
+            if (statusTitle) statusTitle.innerText = "All Line Statuses";
+            loadTrackedStatus();
+            setInterval(loadTrackedStatus, 60000);
+        }
     } else {
-        document.getElementById('guest-hero').classList.remove('d-none');
-        document.getElementById('guest-features').classList.remove('d-none');
+        const guestHero = document.getElementById('guest-hero');
+        if (guestHero) guestHero.classList.remove('d-none');
+        const guestFeatures = document.getElementById('guest-features');
+        if (guestFeatures) guestFeatures.classList.remove('d-none');
+        
+        // Redirect to login if on tracking page and not logged in
+        if (document.getElementById('tracking-content')) {
+            window.location.href = '/login.html';
+        }
     }
     
     loadTubeStatus();
