@@ -351,7 +351,7 @@ function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlag
     const bell = isFlagged ? '<i class="bi bi-bell-fill me-2" title="Matches your notification settings"></i>' : '';
     
     let infoIcon = '';
-    let badgeAttr = '';
+    let cardAttr = '';
     if (details && (details.length > 2 || hasDetails)) {
         const detailsJson = encodeURIComponent(JSON.stringify(details));
         const tooltipText = joinList([...new Set(details.map(d => d.description))]).replace(/'/g, "&apos;");
@@ -359,16 +359,16 @@ function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlag
         const safeName = name.replace(/'/g, "\\'");
         
         infoIcon = ` <i class="bi bi-info-circle-fill ms-1"></i>`;
-        badgeAttr = `data-bs-toggle="tooltip" data-bs-title="${tooltipText}" onclick="showStatusDetail('${safeName}', '${safeDetailsJson}')" style="cursor: pointer;"`;
+        cardAttr = `data-bs-toggle="tooltip" data-bs-title="Click for details: ${tooltipText}" onclick="showStatusDetail('${safeName}', '${safeDetailsJson}')" style="cursor: pointer;"`;
     }
 
     return `
         <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'flagged' : ''}">
+            <div class="card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'flagged' : ''}" ${cardAttr}>
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h5 class="card-title fw-bold mb-0">${bell}${name}</h5>
-                        <span class="badge ${badgeClass}" ${badgeAttr}>${severity}${infoIcon}</span>
+                        <span class="badge ${badgeClass}">${severity}${infoIcon}</span>
                     </div>
                     ${reasons.map(r => `<p class="card-text small text-muted mt-2 mb-0">${r}</p>`).join('')}
                 </div>

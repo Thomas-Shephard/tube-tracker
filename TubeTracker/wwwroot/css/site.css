@@ -19,14 +19,13 @@ body {
     color: #333;
 }
 
-.badge[onclick] {
-    transition: transform 0.1s, filter 0.1s;
+.line-card[onclick]:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    filter: brightness(1.02);
 }
 
-.badge[onclick]:hover {
-    transform: scale(1.05);
-    filter: brightness(1.1);
-}
+.badge[onclick] {
 
 .border-dashed {
     border-style: dashed !important;
