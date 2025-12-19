@@ -144,10 +144,6 @@ async function loadTubeStatus() {
                 const { display: severityDescription, full: fullStatus } = formatSeverity(activeStatuses);
                 const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
                 
-                if (activeStatuses.length > 0) {
-                    console.log(`Line: ${line.name}`, activeStatuses.map(s => ({ desc: s.severity.description, urgency: s.severity.urgency })));
-                }
-
                 const maxUrgency = activeStatuses.length ? Math.max(...activeStatuses.map(s => s.severity.urgency)) : 0;
                 
                 let badgeClass = "bg-success";
