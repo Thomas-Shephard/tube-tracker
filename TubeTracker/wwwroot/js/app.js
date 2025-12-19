@@ -350,6 +350,18 @@ async function initTracking() {
     } catch (err) { console.error("Tracking init error:", err); }
 }
 
+function showSavedFeedback(type, id) {
+    const el = document.getElementById(`saved-${type}-${id}`);
+    if (el) {
+        el.classList.remove('opacity-0');
+        el.classList.add('opacity-100');
+        setTimeout(() => {
+            el.classList.remove('opacity-100');
+            el.classList.add('opacity-0');
+        }, 1500);
+    }
+}
+
 function renderLines() {
     const container = document.getElementById('lines-list');
     if (!container) return;
@@ -369,9 +381,12 @@ function renderLines() {
                         <label class="form-check-label" for="notify-line-${line.lineId}">Email Notifications</label>
                     </div>
                     <label class="form-label x-small text-muted mb-1">Minimum Alert Urgency</label>
-                    <select class="form-select form-select-sm" id="urgency-line-${line.lineId}" onchange="updateLineSettings(${line.lineId})">
-                        ${urgencyLevels.map(u => `<option value="${u.val}" ${tracked.minUrgency === u.val ? 'selected' : ''}>${u.label}</option>`).join('')}
-                    </select>
+                    <div class="d-flex align-items-center gap-2">
+                        <select class="form-select form-select-sm" id="urgency-line-${line.lineId}" onchange="updateLineSettings(${line.lineId})">
+                            ${urgencyLevels.map(u => `<option value="${u.val}" ${tracked.minUrgency === u.val ? 'selected' : ''}>${u.label}</option>`).join('')}
+                        </select>
+                        <span id="saved-line-${line.lineId}" class="text-success small fw-bold opacity-0" style="transition: opacity 0.3s; white-space: nowrap;"><i class="bi bi-check-circle-fill me-1"></i>Saved</span>
+                    </div>
                 </div>
             `;
         }
@@ -399,11 +414,12 @@ async function updateLineSettings(lineId) {
     const minUrgency = parseInt(document.getElementById(`urgency-line-${lineId}`).value);
     
     try {
-        await fetch('/api/tracking/lines', {
+        const res = await fetch('/api/tracking/lines', {
             method: 'PUT',
             headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
             body: JSON.stringify({ lineId, notify, minUrgency })
         });
+        if (res.ok) showSavedFeedback('line', lineId);
     } catch (err) { console.error(err); }
 }
 
@@ -460,9 +476,12 @@ function renderStations() {
         if (tracked) {
             settingsHtml = `
                 <div class="settings-panel mt-3">
-                    <div class="form-check form-switch mb-0">
-                        <input class="form-check-input" type="checkbox" id="notify-station-${station.stationId}" ${tracked.notify ? 'checked' : ''} onchange="updateStationSettings(${station.stationId})">
-                        <label class="form-check-label" for="notify-station-${station.stationId}">Email Notifications</label>
+                    <div class="form-check form-switch mb-0 d-flex justify-content-between align-items-center">
+                        <div>
+                            <input class="form-check-input" type="checkbox" id="notify-station-${station.stationId}" ${tracked.notify ? 'checked' : ''} onchange="updateStationSettings(${station.stationId})">
+                            <label class="form-check-label" for="notify-station-${station.stationId}">Email Notifications</label>
+                        </div>
+                        <span id="saved-station-${station.stationId}" class="text-success small fw-bold opacity-0" style="transition: opacity 0.3s; white-space: nowrap;"><i class="bi bi-check-circle-fill me-1"></i>Saved</span>
                     </div>
                 </div>
             `;
@@ -491,11 +510,12 @@ async function updateStationSettings(stationId) {
     const notify = document.getElementById(`notify-station-${stationId}`).checked;
     
     try {
-        await fetch('/api/tracking/stations', {
+        const res = await fetch('/api/tracking/stations', {
             method: 'PUT',
             headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
             body: JSON.stringify({ stationId, notify })
         });
+        if (res.ok) showSavedFeedback('station', stationId);
     } catch (err) { console.error(err); }
 }
 
