@@ -139,13 +139,11 @@ function updateTimeAgo(elementId, timestamp) {
     else if (seconds < 120) text = "1 minute ago";
     else text = `${Math.floor(seconds / 60)} minutes ago`;
 
-    const liveDot = `<span class="live-dot ${seconds >= 55 ? 'pulsing' : ''}"></span>`;
-
     // Special state for nearing refresh (assuming 60s interval)
     if (seconds >= 55) {
-        el.innerHTML = `${liveDot}<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span>Refreshing...</span>`;
+        el.innerHTML = `<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span>Refreshing...</span>`;
     } else {
-        el.innerHTML = `${liveDot}Last updated: ${text}`;
+        el.innerText = `Last updated: ${text}`;
     }
 }
 

@@ -57,21 +57,6 @@ body {
     animation: skeleton-pulse 1.5s infinite ease-in-out;
 }
 
-.live-dot {
-    height: 8px;
-    width: 8px;
-    background-color: #00782a;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 6px;
-    vertical-align: middle;
-}
-
-.live-dot.pulsing {
-    animation: pulse-red 2s infinite;
-    background-color: #e1251b;
-}
-
 .status-severe .badge {
     animation: pulse-red 2s infinite;
 }
