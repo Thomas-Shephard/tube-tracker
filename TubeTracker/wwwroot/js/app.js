@@ -138,13 +138,17 @@ async function loadTubeStatus() {
             resultElement.innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
             listContainer.innerHTML = '';
 
-            // Sort by severity then name
-            lines = lines.map(line => ({
-                ...line,
-                minSeverityId: line.statuses && line.statuses.length > 0 
-                    ? Math.min(...line.statuses.map(s => s.severity.severityLevel)) 
-                    : 10
-            })).sort((a, b) => (a.minSeverityId - b.minSeverityId) || a.name.localeCompare(b.name));
+            // Handle both "statuses" and "Statuses" from API
+            lines = lines.map(line => {
+                const activeStatuses = line.statuses || line.Statuses || [];
+                return {
+                    ...line,
+                    activeStatuses: activeStatuses,
+                    minSeverityId: activeStatuses.length > 0 
+                        ? Math.min(...activeStatuses.map(s => s.severity.severityLevel)) 
+                        : 10
+                };
+            }).sort((a, b) => (a.minSeverityId - b.minSeverityId) || a.name.localeCompare(b.name));
 
             lines.forEach(line => {
                 const activeStatuses = line.activeStatuses;
