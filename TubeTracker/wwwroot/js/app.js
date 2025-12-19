@@ -328,8 +328,10 @@ function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlag
     let infoIcon = '';
     if (details && (details.length > 2 || hasDetails)) {
         const detailsJson = encodeURIComponent(JSON.stringify(details));
-        const tooltipText = joinList([...new Set(details.map(d => d.description))]);
-        infoIcon = ` <i class="bi bi-info-circle-fill ms-1" data-bs-toggle="tooltip" data-bs-title="${tooltipText}" onclick="showStatusDetail('${name.replace(/'/g, "\\'")}', '${detailsJson}')" style="cursor: help;"></i>`;
+        const tooltipText = joinList([...new Set(details.map(d => d.description))]).replace(/'/g, "&apos;");
+        // We double escape the backslashes for the inline onclick string
+        const escapedDetailsJson = detailsJson.replace(/\\/g, '\\\\');
+        infoIcon = ` <i class="bi bi-info-circle-fill ms-1" data-bs-toggle="tooltip" data-bs-title="${tooltipText}" onclick="showStatusDetail('${name.replace(/'/g, "\\'")}', '${escapedDetailsJson}')" style="cursor: help;"></i>`;
     }
 
     return `
