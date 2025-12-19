@@ -69,7 +69,7 @@ function joinList(list) {
 
 function formatSeverity(activeStatuses) {
     if (!activeStatuses || activeStatuses.length === 0) {
-        return { display: "Good Service", full: "" };
+        return { display: "Good Service", full: [], hasDetails: false };
     }
 
     // Sort by urgency descending (higher urgency first), then severityLevel ascending (lower number is more severe)
@@ -78,15 +78,22 @@ function formatSeverity(activeStatuses) {
     );
 
     const descriptions = [...new Set(sorted.map(s => s.severity.description))];
-    const fullList = joinList(descriptions);
+    
+    // Create detailed status objects for modal
+    const details = sorted.map(s => ({
+        description: s.severity.description,
+        reason: s.statusDescription || s.reason || "" // Handle both API property names
+    }));
+
+    const fullListText = joinList(descriptions);
 
     if (descriptions.length === 2) {
-        return { display: fullList, full: "" };
+        return { display: fullListText, full: details, hasDetails: details.some(d => d.reason) };
     } else if (descriptions.length > 2) {
-        return { display: `${descriptions[0]} & More`, full: fullList };
+        return { display: `${descriptions[0]} & More`, full: details, hasDetails: true };
     }
     
-    return { display: descriptions[0], full: "" };
+    return { display: descriptions[0], full: details, hasDetails: details.some(d => d.reason) };
 }
 
 function validatePassword(password) {
@@ -140,8 +147,8 @@ async function loadTubeStatus() {
             })).sort((a, b) => (a.minSeverityId - b.minSeverityId) || a.name.localeCompare(b.name));
 
             lines.forEach(line => {
-                const activeStatuses = line.statuses || [];
-                const { display: severityDescription, full: fullStatus } = formatSeverity(activeStatuses);
+                const activeStatuses = line.activeStatuses;
+                const { display: severityDescription, full: details, hasDetails } = formatSeverity(activeStatuses);
                 const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
                 
                 const maxUrgency = activeStatuses.length ? Math.max(...activeStatuses.map(s => s.severity.urgency)) : 0;
@@ -157,7 +164,7 @@ async function loadTubeStatus() {
                     statusClass = "status-minor";
                 }
 
-                listContainer.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, false, fullStatus));
+                listContainer.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, false, details, hasDetails));
             });
             initTooltips();
         }
@@ -226,7 +233,7 @@ async function loadTrackedStatus() {
 
             sortedLines.forEach(line => {
                 const activeStatuses = line.statuses || [];
-                const { display: severityDescription, full: fullStatus } = formatSeverity(activeStatuses);
+                const { display: severityDescription, full: details, hasDetails } = formatSeverity(activeStatuses);
                 const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
                 const maxUrgency = line.maxUrgency || 0;
                 
@@ -241,7 +248,7 @@ async function loadTrackedStatus() {
                     statusClass = "status-minor";
                 }
                 
-                lineList.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged, fullStatus));
+                lineList.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged, details, hasDetails));
             });
 
             const sortedStations = data.stations.map(station => {
@@ -273,20 +280,41 @@ async function loadTrackedStatus() {
     } catch (e) { console.error(e); }
 }
 
-function showStatusDetail(name, fullStatus) {
+function showStatusDetail(name, detailsJson) {
+    const details = JSON.parse(decodeURIComponent(detailsJson));
     const modalLabel = document.getElementById('statusModalLabel');
     const modalBody = document.getElementById('statusModalBody');
     if (modalLabel && modalBody) {
-        modalLabel.innerText = `${name} - All Statuses`;
-        modalBody.innerText = fullStatus;
+        modalLabel.innerText = `${name} - Service Details`;
+        
+        let html = '';
+        details.forEach((d, i) => {
+            html += `
+                <div class="${i > 0 ? 'mt-3 pt-3 border-top' : ''}">
+                    <div class="d-flex align-items-center mb-2">
+                        <span class="badge ${d.description.includes('Good') ? 'bg-success' : (d.description.includes('Minor') ? 'bg-warning text-dark' : 'bg-danger')} me-2">${d.description}</span>
+                    </div>
+                    ${d.reason ? `<p class="small text-muted mb-0">${d.reason}</p>` : '<p class="small text-muted mb-0 italic">No further details provided by TfL.</p>'}
+                </div>
+            `;
+        });
+        
+        modalBody.innerHTML = html;
         const modal = new bootstrap.Modal(document.getElementById('statusModal'));
         modal.show();
     }
 }
 
-function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlagged = false, fullStatus = "") {
+function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlagged = false, details = null, hasDetails = false) {
     const bell = isFlagged ? '<i class="bi bi-bell-fill me-2" title="Matches your notification settings"></i>' : '';
-    const infoIcon = fullStatus ? ` <i class="bi bi-info-circle-fill ms-1" data-bs-toggle="tooltip" data-bs-title="${fullStatus}" onclick="showStatusDetail('${name.replace(/'/g, "\\'")}', '${fullStatus.replace(/'/g, "\\'")}')" style="cursor: help;"></i>` : '';
+    
+    let infoIcon = '';
+    if (details && (details.length > 2 || hasDetails)) {
+        const detailsJson = encodeURIComponent(JSON.stringify(details));
+        const tooltipText = joinList([...new Set(details.map(d => d.description))]);
+        infoIcon = ` <i class="bi bi-info-circle-fill ms-1" data-bs-toggle="tooltip" data-bs-title="${tooltipText}" onclick="showStatusDetail('${name.replace(/'/g, "\\'")}', '${detailsJson}')" style="cursor: help;"></i>`;
+    }
+
     return `
         <div class="col-md-6 col-lg-4">
             <div class="card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'flagged' : ''}">

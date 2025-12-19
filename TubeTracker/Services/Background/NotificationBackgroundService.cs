@@ -61,7 +61,12 @@ public class NotificationBackgroundService(IServiceScopeFactory serviceScopeFact
                     body.Append("<b>Lines:</b><br/><ul>");
                     foreach (LineNotificationModel n in userLines)
                     {
-                        body.Append($"<li><b>{n.LineName}</b>: {n.StatusDescription} (Reported: {n.ReportedAt:f})</li>");
+                        body.Append($"<li><b>{n.LineName}</b>: {n.StatusDescription}");
+                        if (!string.IsNullOrWhiteSpace(n.DetailedDescription))
+                        {
+                            body.Append($"<br/><small>{n.DetailedDescription}</small>");
+                        }
+                        body.Append($" (Reported: {n.ReportedAt:f})</li>");
                     }
                     body.Append("</ul><br/>");
                 }

@@ -24,4 +24,7 @@ public class LineStatus
 
     [JsonPropertyName("statusSeverityDescription")]
     public string StatusSeverityDescription { get; set; } = string.Empty;
+
+    [JsonPropertyName("reason")]
+    public string? Reason { get; set; }
 }

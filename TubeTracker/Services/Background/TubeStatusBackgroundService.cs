@@ -62,7 +62,7 @@ public class TubeStatusBackgroundService(
 
                     foreach (LineStatus status in tflLine.LineStatuses)
                     {
-                        await lineHistoryRepository.UpsertAsync(lineId, status.StatusSeverity, lineThreshold);
+                        await lineHistoryRepository.UpsertAsync(lineId, status.StatusSeverity, status.Reason, lineThreshold);
                     }
                 }
             }

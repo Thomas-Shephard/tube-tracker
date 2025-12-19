@@ -8,5 +8,6 @@ public class LineNotificationModel
     public required string UserName { get; init; }
     public required string LineName { get; init; }
     public required string StatusDescription { get; init; }
+    public string? DetailedDescription { get; init; }
     public DateTime ReportedAt { get; init; }
 }

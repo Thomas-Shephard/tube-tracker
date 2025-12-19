@@ -7,7 +7,7 @@ namespace TubeTracker.API.Repositories;
 
 public class LineStatusHistoryRepository(IDbConnection connection, StatusBackgroundSettings settings) : ILineStatusHistoryRepository
 {
-    public async Task UpsertAsync(int lineId, int statusSeverity, DateTime? threshold = null)
+    public async Task UpsertAsync(int lineId, int statusSeverity, string? statusDescription = null, DateTime? threshold = null)
     {
         const string findQuery = """
                                  SELECT history_id FROM LineStatusHistory 
@@ -23,20 +23,20 @@ public class LineStatusHistoryRepository(IDbConnection connection, StatusBackgro
 
         if (historyId.HasValue)
         {
-            const string updateQuery = "UPDATE LineStatusHistory SET last_reported_at = @Now WHERE history_id = @HistoryId";
-            await connection.ExecuteAsync(updateQuery, new { Now = DateTime.UtcNow, HistoryId = historyId.Value });
+            const string updateQuery = "UPDATE LineStatusHistory SET last_reported_at = @Now, status_description = @StatusDescription WHERE history_id = @HistoryId";
+            await connection.ExecuteAsync(updateQuery, new { Now = DateTime.UtcNow, StatusDescription = statusDescription ?? "", HistoryId = historyId.Value });
         }
         else
         {
-            const string insertQuery = "INSERT INTO LineStatusHistory (line_id, status_severity, first_reported_at, last_reported_at) VALUES (@LineId, @StatusSeverity, @Now, @Now)";
-            await connection.ExecuteAsync(insertQuery, new { LineId = lineId, StatusSeverity = statusSeverity, Now = DateTime.UtcNow });
+            const string insertQuery = "INSERT INTO LineStatusHistory (line_id, status_severity, status_description, first_reported_at, last_reported_at) VALUES (@LineId, @StatusSeverity, @StatusDescription, @Now, @Now)";
+            await connection.ExecuteAsync(insertQuery, new { LineId = lineId, StatusSeverity = statusSeverity, StatusDescription = statusDescription ?? "", Now = DateTime.UtcNow });
         }
     }
 
     public async Task<IEnumerable<LineStatusHistory>> GetActiveByLineIdAsync(int lineId)
     {
         const string query = """
-                             SELECT lsh.history_id, lsh.line_id, lsh.status_severity, lsh.first_reported_at, lsh.last_reported_at,
+                             SELECT lsh.history_id, lsh.line_id, lsh.status_severity, lsh.status_description, lsh.first_reported_at, lsh.last_reported_at,
                                     ss.severity_level, ss.description, ss.urgency
                              FROM LineStatusHistory lsh
                              JOIN StatusSeverity ss ON lsh.status_severity = ss.severity_level
@@ -53,6 +53,7 @@ public class LineStatusHistoryRepository(IDbConnection connection, StatusBackgro
             HistoryId = (int)row.history_id,
             LineId = (int)row.line_id,
             StatusSeverity = (int)row.status_severity,
+            StatusDescription = (string)row.status_description,
             FirstReportedAt = (DateTime)row.first_reported_at,
             LastReportedAt = (DateTime)row.last_reported_at,
             Severity = new StatusSeverity

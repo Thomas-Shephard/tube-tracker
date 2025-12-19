@@ -47,6 +47,7 @@ public class TrackedLineRepository(IDbConnection connection) : ITrackedLineRepos
                                  u.name AS UserName,
                                  l.name AS LineName,
                                  ss.description AS StatusDescription,
+                                 lsh.status_description AS DetailedDescription,
                                  lsh.first_reported_at AS ReportedAt
                              FROM TrackedLine tl
                              JOIN User u ON tl.user_id = u.user_id
