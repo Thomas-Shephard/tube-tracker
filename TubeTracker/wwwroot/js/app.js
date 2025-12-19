@@ -143,6 +143,14 @@ async function loadTubeStatus() {
                 const activeStatuses = line.statuses || [];
                 const { display: severityDescription, full: fullStatus } = formatSeverity(activeStatuses);
                 const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
+                
+                // Debug logging to find out why Severe Delays is yellow
+                activeStatuses.forEach(s => {
+                    if (s.severity.description.includes("Severe")) {
+                        console.log(`Line: ${line.name}, Status: ${s.severity.description}, Urgency: ${s.severity.urgency}`);
+                    }
+                });
+
                 const maxUrgency = activeStatuses.length ? Math.max(...activeStatuses.map(s => s.severity.urgency)) : 0;
                 
                 let badgeClass = "bg-success";
