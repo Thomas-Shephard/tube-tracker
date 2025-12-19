@@ -61,6 +61,28 @@ function updateNavbar() {
     }
 }
 
+function formatSeverity(activeStatuses) {
+    if (!activeStatuses || activeStatuses.length === 0) {
+        return { display: "Good Service", full: "" };
+    }
+
+    // Sort by urgency descending, then severityLevel ascending
+    const sorted = [...activeStatuses].sort((a, b) =>
+        (b.severity.urgency - a.severity.urgency) || (a.severity.severityLevel - b.severity.severityLevel)
+    );
+
+    const descriptions = [...new Set(sorted.map(s => s.severity.description))];
+    const worst = descriptions[0];
+
+    if (descriptions.length > 1) {
+        return {
+            display: `${worst} & More`,
+            full: descriptions.join(" & ")
+        };
+    }
+    return { display: worst, full: "" };
+}
+
 function validatePassword(password) {
     const minLength = password.length >= 8;
     const hasUpper = /[A-Z]/.test(password);
@@ -113,7 +135,7 @@ async function loadTubeStatus() {
 
             lines.forEach(line => {
                 const activeStatuses = line.statuses || [];
-                const severityDescription = activeStatuses.length > 0 ? activeStatuses.map(s => s.severity.description).join(" & ") : "Good Service";
+                const { display: severityDescription, full: fullStatus } = formatSeverity(activeStatuses);
                 const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
                 
                 let badgeClass = "bg-success";
@@ -126,7 +148,7 @@ async function loadTubeStatus() {
                     statusClass = "status-severe";
                 }
 
-                listContainer.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons));
+                listContainer.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, false, fullStatus));
             });
         }
     } catch (e) { console.error(e); }
@@ -195,13 +217,13 @@ async function loadTrackedStatus() {
             sortedLines.forEach(line => {
                 const activeStatuses = line.statuses || [];
                 const minSeverityId = activeStatuses.length ? Math.min(...activeStatuses.map(s => s.severity.severityLevel)) : 10;
-                const severityDescription = activeStatuses.length ? activeStatuses.map(s => s.severity.description).join(" & ") : "Good Service";
+                const { display: severityDescription, full: fullStatus } = formatSeverity(activeStatuses);
                 const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
                 
                 let badgeClass = minSeverityId < 10 ? (minSeverityId <= 5 ? "bg-danger" : "bg-warning text-dark") : "bg-success";
                 let statusClass = minSeverityId < 10 ? (minSeverityId <= 5 ? "status-severe" : "status-minor") : "status-good";
                 
-                lineList.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged));
+                lineList.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged, fullStatus));
             });
 
             const sortedStations = data.stations.map(station => {
@@ -232,15 +254,16 @@ async function loadTrackedStatus() {
     } catch (e) { console.error(e); }
 }
 
-function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlagged = false) {
+function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlagged = false, fullStatus = "") {
     const bell = isFlagged ? '<i class="bi bi-bell-fill me-2" title="Matches your notification settings"></i>' : '';
+    const titleAttr = fullStatus ? `title="${fullStatus}"` : '';
     return `
         <div class="col-md-6 col-lg-4">
             <div class="card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'flagged' : ''}">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h5 class="card-title fw-bold mb-0">${bell}${name}</h5>
-                        <span class="badge ${badgeClass}">${severity}</span>
+                        <span class="badge ${badgeClass}" ${titleAttr}>${severity}</span>
                     </div>
                     ${reasons.map(r => `<p class="card-text small text-muted mt-2 mb-0">${r}</p>`).join('')}
                 </div>
