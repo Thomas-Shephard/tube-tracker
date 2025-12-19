@@ -27,6 +27,53 @@ body {
 
 .badge[onclick] {
 
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse-red {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 37, 27, 0.7); }
+    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(225, 37, 27, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 37, 27, 0); }
+}
+
+@keyframes skeleton-pulse {
+    0% { background-color: #f0f0f0; }
+    50% { background-color: #e0e0e0; }
+    100% { background-color: #f0f0f0; }
+}
+
+.fade-in {
+    animation: fadeIn 0.4s ease-out forwards;
+}
+
+.skeleton-card {
+    height: 120px;
+    border-radius: 12px;
+    animation: skeleton-pulse 1.5s infinite ease-in-out;
+}
+
+.live-dot {
+    height: 8px;
+    width: 8px;
+    background-color: #00782a;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.live-dot.pulsing {
+    animation: pulse-red 2s infinite;
+    background-color: #e1251b;
+}
+
+.status-severe .badge {
+    animation: pulse-red 2s infinite;
+}
+
 .border-dashed {
     border-style: dashed !important;
     border-width: 2px !important;

@@ -139,12 +139,28 @@ function updateTimeAgo(elementId, timestamp) {
     else if (seconds < 120) text = "1 minute ago";
     else text = `${Math.floor(seconds / 60)} minutes ago`;
 
+    const liveDot = `<span class="live-dot ${seconds >= 55 ? 'pulsing' : ''}"></span>`;
+
     // Special state for nearing refresh (assuming 60s interval)
     if (seconds >= 55) {
-        el.innerHTML = `<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span>Refreshing...</span>`;
+        el.innerHTML = `${liveDot}<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span>Refreshing...</span>`;
     } else {
-        el.innerText = `Last updated: ${text}`;
+        el.innerHTML = `${liveDot}Last updated: ${text}`;
     }
+}
+
+function showSkeleton(containerId, count = 6) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    let html = '';
+    for (let i = 0; i < count; i++) {
+        html += `
+            <div class="col-md-6 col-lg-4">
+                <div class="skeleton-card shadow-sm mb-4"></div>
+            </div>
+        `;
+    }
+    container.innerHTML = html;
 }
 
 async function loadTubeStatus() {
@@ -152,7 +168,10 @@ async function loadTubeStatus() {
     const listContainer = document.getElementById('tube-list');
     if (!listContainer) return;
 
-    if (!lastUpdateLineTime) resultElement.innerText = "Fetching latest data...";
+    if (!lastUpdateLineTime) {
+        resultElement.innerText = "Fetching latest data...";
+        showSkeleton('tube-list', 11);
+    }
     
     try {
         const response = await fetch('/api/status/lines');
@@ -174,7 +193,7 @@ async function loadTubeStatus() {
                 };
             }).sort((a, b) => (a.minSeverityId - b.minSeverityId) || a.name.localeCompare(b.name));
 
-            lines.forEach(line => {
+            lines.forEach((line, index) => {
                 const activeStatuses = line.activeStatuses;
                 const { display: severityDescription, full: details, hasDetails } = formatSeverity(activeStatuses);
                 const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
@@ -192,7 +211,13 @@ async function loadTubeStatus() {
                     statusClass = "status-minor";
                 }
 
-                listContainer.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, false, details, hasDetails));
+                const cardHtml = createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, false, details, hasDetails);
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = cardHtml;
+                const cardEl = tempDiv.firstElementChild;
+                cardEl.classList.add('fade-in');
+                cardEl.style.animationDelay = `${index * 0.05}s`;
+                listContainer.appendChild(cardEl);
             });
             initTooltips();
         }
@@ -220,6 +245,10 @@ async function loadTrackedStatus() {
 
     if (unverifiedMsg) unverifiedMsg.classList.add('d-none');
     if (verifiedContent) verifiedContent.classList.remove('d-none');
+
+    if (!lastUpdateTrackedTime) {
+        showSkeleton('tracked-line-list', 3);
+    }
 
     try {
         const response = await fetch('/api/status/tracked', { headers: getAuthHeader() });
@@ -249,19 +278,19 @@ async function loadTrackedStatus() {
             stationList.innerHTML = data.stations.length ? '' : emptyStationHtml;
 
             const sortedLines = data.lines.map(line => {
-                const activeStatuses = line.statuses || [];
+                const activeStatuses = line.statuses || line.Statuses || [];
                 const maxUrgency = activeStatuses.length ? Math.max(...activeStatuses.map(s => s.severity.urgency)) : 0;
                 // MinUrgency defaults to 2 (Severe) if not set, or we can use the value from the object
                 const isFlagged = maxUrgency >= (line.minUrgency ?? 2) && maxUrgency > 0;
-                return { ...line, isFlagged, maxUrgency };
+                return { ...line, activeStatuses, isFlagged, maxUrgency };
             }).sort((a, b) => {
                 if (a.isFlagged && !b.isFlagged) return -1;
                 if (!a.isFlagged && b.isFlagged) return 1;
                 return (b.maxUrgency - a.maxUrgency) || a.name.localeCompare(b.name);
             });
 
-            sortedLines.forEach(line => {
-                const activeStatuses = line.statuses || [];
+            sortedLines.forEach((line, index) => {
+                const activeStatuses = line.activeStatuses;
                 const { display: severityDescription, full: details, hasDetails } = formatSeverity(activeStatuses);
                 const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
                 const maxUrgency = line.maxUrgency || 0;
@@ -277,21 +306,27 @@ async function loadTrackedStatus() {
                     statusClass = "status-minor";
                 }
                 
-                lineList.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged, details, hasDetails));
+                const cardHtml = createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged, details, hasDetails);
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = cardHtml;
+                const cardEl = tempDiv.firstElementChild;
+                cardEl.classList.add('fade-in');
+                cardEl.style.animationDelay = `${index * 0.05}s`;
+                lineList.appendChild(cardEl);
             });
 
             const sortedStations = data.stations.map(station => {
-                const activeStatuses = station.statuses || [];
+                const activeStatuses = station.statuses || station.Statuses || [];
                 const isFlagged = activeStatuses.length > 0 && activeStatuses.some(s => s.statusDescription !== 'No Issues');
-                return { ...station, isFlagged };
+                return { ...station, activeStatuses, isFlagged };
             }).sort((a, b) => {
                 if (a.isFlagged && !b.isFlagged) return -1;
                 if (!a.isFlagged && b.isFlagged) return 1;
                 return a.commonName.localeCompare(b.commonName);
             });
 
-            sortedStations.forEach(station => {
-                const activeStatuses = station.statuses || [];
+            sortedStations.forEach((station, index) => {
+                const activeStatuses = station.activeStatuses;
                 const hasIssues = station.isFlagged;
                 
                 const badgeText = hasIssues ? "Disruption" : "No disruptions";
@@ -300,7 +335,13 @@ async function loadTrackedStatus() {
                 let badgeClass = hasIssues ? "bg-warning text-dark" : "bg-success";
                 let statusClass = hasIssues ? "status-minor" : "status-good";
 
-                stationList.insertAdjacentHTML('beforeend', createCardHtml(station.commonName, badgeText, badgeClass, statusClass, reasons, hasIssues));
+                const cardHtml = createCardHtml(station.commonName, badgeText, badgeClass, statusClass, reasons, hasIssues);
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = cardHtml;
+                const cardEl = tempDiv.firstElementChild;
+                cardEl.classList.add('fade-in');
+                cardEl.style.animationDelay = `${(sortedLines.length + index) * 0.05}s`;
+                stationList.appendChild(cardEl);
             });
             initTooltips();
         } else if (response.status === 401) {
