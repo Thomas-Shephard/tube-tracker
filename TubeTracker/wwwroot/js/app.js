@@ -291,14 +291,27 @@ function showStatusDetail(name, detailsJson) {
     if (modalLabel && modalBody) {
         modalLabel.innerText = `${name} - Service Details`;
         
+        // Group by reason to handle merged TfL descriptions
+        const grouped = details.reduce((acc, d) => {
+            const key = d.reason || "no-reason";
+            if (!acc[key]) acc[key] = { reason: d.reason, statuses: [] };
+            acc[key].statuses.push(d.description);
+            return acc;
+        }, {});
+
         let html = '';
-        details.forEach((d, i) => {
+        Object.values(grouped).forEach((group, i) => {
+            const badges = group.statuses.map(s => {
+                const colorClass = s.includes('Good') ? 'bg-success' : (s.includes('Minor') ? 'bg-warning text-dark' : 'bg-danger');
+                return `<span class="badge ${colorClass} me-2">${s}</span>`;
+            }).join('');
+
             html += `
                 <div class="${i > 0 ? 'mt-3 pt-3 border-top' : ''}">
-                    <div class="d-flex align-items-center mb-2">
-                        <span class="badge ${d.description.includes('Good') ? 'bg-success' : (d.description.includes('Minor') ? 'bg-warning text-dark' : 'bg-danger')} me-2">${d.description}</span>
+                    <div class="d-flex flex-wrap align-items-center mb-2 gap-1">
+                        ${badges}
                     </div>
-                    ${d.reason ? `<p class="small text-muted mb-0">${d.reason}</p>` : '<p class="small text-muted mb-0 italic">No further details provided by TfL.</p>'}
+                    ${group.reason ? `<p class="small text-muted mb-0">${group.reason}</p>` : '<p class="small text-muted mb-0 italic">No further details provided by TfL.</p>'}
                 </div>
             `;
         });
@@ -307,31 +320,6 @@ function showStatusDetail(name, detailsJson) {
         const modal = new bootstrap.Modal(document.getElementById('statusModal'));
         modal.show();
     }
-}
-
-function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlagged = false, details = null, hasDetails = false) {
-    const bell = isFlagged ? '<i class="bi bi-bell-fill me-2" title="Matches your notification settings"></i>' : '';
-    
-    let infoIcon = '';
-    if (details && (details.length > 2 || hasDetails)) {
-        const detailsJson = encodeURIComponent(JSON.stringify(details));
-        const tooltipText = joinList([...new Set(details.map(d => d.description))]);
-        infoIcon = ` <i class="bi bi-info-circle-fill ms-1" data-bs-toggle="tooltip" data-bs-title="${tooltipText}" onclick="showStatusDetail('${name.replace(/'/g, "\\'")}', '${detailsJson}')" style="cursor: help;"></i>`;
-    }
-
-    return `
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'flagged' : ''}">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h5 class="card-title fw-bold mb-0">${bell}${name}</h5>
-                        <span class="badge ${badgeClass}">${severity}${infoIcon}</span>
-                    </div>
-                    ${reasons.map(r => `<p class="card-text small text-muted mt-2 mb-0">${r}</p>`).join('')}
-                </div>
-            </div>
-        </div>
-    `;
 }
 
 let activeTooltips = [];

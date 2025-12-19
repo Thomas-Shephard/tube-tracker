@@ -59,14 +59,20 @@ public class NotificationBackgroundService(IServiceScopeFactory serviceScopeFact
                 if (userLines.Count > 0)
                 {
                     body.Append("<b>Lines:</b><br/><ul>");
-                    foreach (LineNotificationModel n in userLines)
+                    // Group by LineName and DetailedDescription to handle merged TfL statuses
+                    var groupedLines = userLines.GroupBy(n => new { n.LineName, n.DetailedDescription });
+                    
+                    foreach (var group in groupedLines)
                     {
-                        body.Append($"<li><b>{n.LineName}</b>: {n.StatusDescription}");
-                        if (!string.IsNullOrWhiteSpace(n.DetailedDescription))
+                        string statusText = string.Join(" & ", group.Select(n => n.StatusDescription).Distinct());
+                        DateTime reportedAt = group.Max(n => n.ReportedAt);
+                        
+                        body.Append($"<li><b>{group.Key.LineName}</b>: {statusText}");
+                        if (!string.IsNullOrWhiteSpace(group.Key.DetailedDescription))
                         {
-                            body.Append($"<br/><small>{n.DetailedDescription}</small>");
+                            body.Append($"<br/><small>{group.Key.DetailedDescription}</small>");
                         }
-                        body.Append($" (Reported: {n.ReportedAt:f})</li>");
+                        body.Append($" (Reported: {reportedAt:f})</li>");
                     }
                     body.Append("</ul><br/>");
                 }
