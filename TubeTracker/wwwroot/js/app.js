@@ -72,11 +72,18 @@ function formatSeverity(activeStatuses) {
     );
 
     const descriptions = [...new Set(sorted.map(s => s.severity.description))];
-    const fullList = descriptions.join(" & ");
+    
+    const joinList = (list) => {
+        if (list.length <= 1) return list[0] || "";
+        if (list.length === 2) return `${list[0]} & ${list[1]}`;
+        return list.slice(0, -1).join(", ") + ", & " + list[list.length - 1];
+    };
+
+    const fullList = joinList(descriptions);
 
     if (descriptions.length === 2) {
         return {
-            display: `${descriptions[0]} & ${descriptions[1]}`,
+            display: fullList,
             full: ""
         };
     } else if (descriptions.length > 2) {
