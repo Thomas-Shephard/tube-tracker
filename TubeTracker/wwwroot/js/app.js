@@ -66,21 +66,27 @@ function formatSeverity(activeStatuses) {
         return { display: "Good Service", full: "" };
     }
 
-    // Sort by urgency descending, then severityLevel ascending
+    // Sort by urgency descending (higher urgency first), then severityLevel ascending (lower number is more severe)
     const sorted = [...activeStatuses].sort((a, b) =>
         (b.severity.urgency - a.severity.urgency) || (a.severity.severityLevel - b.severity.severityLevel)
     );
 
     const descriptions = [...new Set(sorted.map(s => s.severity.description))];
-    const worst = descriptions[0];
+    const fullList = descriptions.join(" & ");
 
-    if (descriptions.length > 1) {
+    if (descriptions.length === 2) {
         return {
-            display: `${worst} & More`,
-            full: descriptions.join(" & ")
+            display: `${descriptions[0]} & ${descriptions[1]}`,
+            full: ""
+        };
+    } else if (descriptions.length > 2) {
+        return {
+            display: `${descriptions[0]} & More`,
+            full: fullList
         };
     }
-    return { display: worst, full: "" };
+    
+    return { display: descriptions[0], full: "" };
 }
 
 function validatePassword(password) {
@@ -150,6 +156,7 @@ async function loadTubeStatus() {
 
                 listContainer.insertAdjacentHTML('beforeend', createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, false, fullStatus));
             });
+            initTooltips();
         }
     } catch (e) { console.error(e); }
 }
@@ -248,6 +255,7 @@ async function loadTrackedStatus() {
 
                 stationList.insertAdjacentHTML('beforeend', createCardHtml(station.commonName, badgeText, badgeClass, statusClass, reasons, hasIssues));
             });
+            initTooltips();
         } else if (response.status === 401) {
             logout();
         }
@@ -256,20 +264,25 @@ async function loadTrackedStatus() {
 
 function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlagged = false, fullStatus = "") {
     const bell = isFlagged ? '<i class="bi bi-bell-fill me-2" title="Matches your notification settings"></i>' : '';
-    const titleAttr = fullStatus ? `title="${fullStatus}"` : '';
+    const infoIcon = fullStatus ? ` <i class="bi bi-info-circle-fill ms-1" data-bs-toggle="tooltip" data-bs-title="${fullStatus}" style="cursor: help;"></i>` : '';
     return `
         <div class="col-md-6 col-lg-4">
             <div class="card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'flagged' : ''}">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <h5 class="card-title fw-bold mb-0">${bell}${name}</h5>
-                        <span class="badge ${badgeClass}" ${titleAttr}>${severity}</span>
+                        <span class="badge ${badgeClass}">${severity}${infoIcon}</span>
                     </div>
                     ${reasons.map(r => `<p class="card-text small text-muted mt-2 mb-0">${r}</p>`).join('')}
                 </div>
             </div>
         </div>
     `;
+}
+
+function initTooltips() {
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 }
 
 // Global scope for onclick
