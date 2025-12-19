@@ -19,22 +19,13 @@ body {
     color: #333;
 }
 
-.badge {
-    padding: 0.5em 0.8em;
-    font-weight: 600;
+.badge[onclick] {
+    transition: transform 0.1s, filter 0.1s;
 }
 
-#tube-list {
-    min-height: 200px;
-}
-
-.navbar .btn-outline-light:hover {
-    color: #212529 !important;
-}
-
-.navbar .btn-primary:hover {
-    background-color: #0056b3;
-    border-color: #004a99;
+.badge[onclick]:hover {
+    transform: scale(1.05);
+    filter: brightness(1.1);
 }
 
 .border-dashed {
