@@ -329,9 +329,11 @@ function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlag
     if (details && (details.length > 2 || hasDetails)) {
         const detailsJson = encodeURIComponent(JSON.stringify(details));
         const tooltipText = joinList([...new Set(details.map(d => d.description))]).replace(/'/g, "&apos;");
-        // We double escape the backslashes for the inline onclick string
-        const escapedDetailsJson = detailsJson.replace(/\\/g, '\\\\');
-        infoIcon = ` <i class="bi bi-info-circle-fill ms-1" data-bs-toggle="tooltip" data-bs-title="${tooltipText}" onclick="showStatusDetail('${name.replace(/'/g, "\\'")}', '${escapedDetailsJson}')" style="cursor: help;"></i>`;
+        // encodeURIComponent does NOT escape single quotes ('), which breaks our onclick='showStatusDetail(...)'.
+        // We must manually escape them.
+        const safeDetailsJson = detailsJson.replace(/'/g, "\\'");
+        const safeName = name.replace(/'/g, "\\'");
+        infoIcon = ` <i class="bi bi-info-circle-fill ms-1" data-bs-toggle="tooltip" data-bs-title="${tooltipText}" onclick="showStatusDetail('${safeName}', '${safeDetailsJson}')" style="cursor: help;"></i>`;
     }
 
     return `
