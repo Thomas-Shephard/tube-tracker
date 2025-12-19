@@ -322,6 +322,31 @@ function showStatusDetail(name, detailsJson) {
     }
 }
 
+function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlagged = false, details = null, hasDetails = false) {
+    const bell = isFlagged ? '<i class="bi bi-bell-fill me-2" title="Matches your notification settings"></i>' : '';
+    
+    let infoIcon = '';
+    if (details && (details.length > 2 || hasDetails)) {
+        const detailsJson = encodeURIComponent(JSON.stringify(details));
+        const tooltipText = joinList([...new Set(details.map(d => d.description))]);
+        infoIcon = ` <i class="bi bi-info-circle-fill ms-1" data-bs-toggle="tooltip" data-bs-title="${tooltipText}" onclick="showStatusDetail('${name.replace(/'/g, "\\'")}', '${detailsJson}')" style="cursor: help;"></i>`;
+    }
+
+    return `
+        <div class="col-md-6 col-lg-4">
+            <div class="card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'flagged' : ''}">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h5 class="card-title fw-bold mb-0">${bell}${name}</h5>
+                        <span class="badge ${badgeClass}">${severity}${infoIcon}</span>
+                    </div>
+                    ${reasons.map(r => `<p class="card-text small text-muted mt-2 mb-0">${r}</p>`).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 let activeTooltips = [];
 function initTooltips() {
     activeTooltips.forEach(t => t.dispose());
