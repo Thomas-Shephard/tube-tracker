@@ -124,18 +124,42 @@ async function logout() {
     window.location.href = '/';
 }
 
+let lastUpdateLineTime = null;
+let lastUpdateTrackedTime = null;
+
+function updateTimeAgo(elementId, timestamp) {
+    const el = document.getElementById(elementId);
+    if (!el || !timestamp) return;
+
+    const seconds = Math.floor((new Date() - timestamp) / 1000);
+    
+    let text = "";
+    if (seconds < 10) text = "Just now";
+    else if (seconds < 60) text = `${seconds} seconds ago`;
+    else if (seconds < 120) text = "1 minute ago";
+    else text = `${Math.floor(seconds / 60)} minutes ago`;
+
+    // Special state for nearing refresh (assuming 60s interval)
+    if (seconds >= 55) {
+        el.innerHTML = `<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span>Refreshing...</span>`;
+    } else {
+        el.innerText = `Last updated: ${text}`;
+    }
+}
+
 async function loadTubeStatus() {
     const resultElement = document.getElementById('api-result');
     const listContainer = document.getElementById('tube-list');
     if (!listContainer) return;
 
-    resultElement.innerText = "Fetching latest data...";
+    if (!lastUpdateLineTime) resultElement.innerText = "Fetching latest data...";
     
     try {
         const response = await fetch('/api/status/lines');
         if (response.ok) {
             let lines = await response.json();
-            resultElement.innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
+            lastUpdateLineTime = new Date();
+            updateTimeAgo('api-result', lastUpdateLineTime);
             listContainer.innerHTML = '';
 
             // Handle both "statuses" and "Statuses" from API
@@ -201,7 +225,8 @@ async function loadTrackedStatus() {
         const response = await fetch('/api/status/tracked', { headers: getAuthHeader() });
         if (response.ok) {
             const data = await response.json();
-            resultElement.innerText = `Last updated: ${new Date().toLocaleTimeString()}`;
+            lastUpdateTrackedTime = new Date();
+            updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
             
             const emptyLineHtml = `
                 <div class="col-12">
@@ -764,4 +789,10 @@ document.addEventListener('DOMContentLoaded', () => {
     
     loadTubeStatus();
     setInterval(loadTubeStatus, 60000);
+
+    // Live 'time ago' updates
+    setInterval(() => {
+        updateTimeAgo('api-result', lastUpdateLineTime);
+        updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
+    }, 1000);
 });
