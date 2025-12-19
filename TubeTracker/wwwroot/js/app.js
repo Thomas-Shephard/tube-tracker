@@ -358,8 +358,12 @@ function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlag
         const safeDetailsJson = detailsJson.replace(/'/g, "\\'");
         const safeName = name.replace(/'/g, "\\'");
         
-        infoIcon = ` <i class="bi bi-info-circle-fill ms-1"></i>`;
-        cardAttr = `data-bs-toggle="tooltip" data-bs-title="Click for details: ${tooltipText}" onclick="showStatusDetail('${safeName}', '${safeDetailsJson}')" style="cursor: pointer;"`;
+        // Only show (i) icon if there are 3+ statuses (the "& More" case)
+        if (details.length > 2) {
+            infoIcon = ` <i class="bi bi-info-circle-fill ms-1"></i>`;
+        }
+        
+        cardAttr = `data-bs-toggle="tooltip" data-bs-title="${tooltipText}" onclick="showStatusDetail('${safeName}', '${safeDetailsJson}')" style="cursor: pointer;"`;
     }
 
     return `
