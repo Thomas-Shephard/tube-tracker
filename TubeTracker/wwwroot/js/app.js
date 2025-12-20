@@ -259,12 +259,10 @@ async function loadTubeStatus() {
             });
             return true;
         } else {
-            resultElement.innerHTML = `<span class="text-danger"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-exclamation-circle-fill me-1" viewBox="0 0 16 16" style="vertical-align: -0.125em;"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>Failed to update live statuses.</span>`;
             return false;
         }
     } catch (e) {
         console.error(e);
-        resultElement.innerHTML = `<span class="text-danger"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-exclamation-circle-fill me-1" viewBox="0 0 16 16" style="vertical-align: -0.125em;"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>Failed to update live statuses.</span>`;
         return false;
     }
 }
@@ -395,12 +393,10 @@ async function loadTrackedStatus() {
             logout();
             return false;
         } else {
-            resultElement.innerHTML = `<span class="text-danger"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-exclamation-circle-fill me-1" viewBox="0 0 16 16" style="vertical-align: -0.125em;"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>Failed to update live statuses.</span>`;
             return false;
         }
     } catch (e) {
         console.error(e);
-        if (resultElement) resultElement.innerHTML = `<span class="text-danger"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-exclamation-circle-fill me-1" viewBox="0 0 16 16" style="vertical-align: -0.125em;"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>Failed to update live statuses.</span>`;
         return false;
     }
 }
@@ -900,12 +896,25 @@ document.addEventListener('DOMContentLoaded', () => {
         const delay = Math.max(0, 3000 - elapsed);
 
         setTimeout(() => {
+            const errorHtml = `<span class="text-danger"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-exclamation-circle-fill me-1" viewBox="0 0 16 16" style="vertical-align: -0.125em;"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>Failed to update live statuses.</span>`;
+
             if (r1 && r2) {
                 // Success
                 retryDelay = 5000;
                 isRetrying = false;
+                
+                if (resEl) {
+                    resEl.innerHTML = '';
+                    updateTimeAgo('api-result', lastUpdateLineTime);
+                }
+                if (trackedResEl) {
+                    trackedResEl.innerHTML = '';
+                    updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
+                }
             } else {
                 // Failure
+                if (!r1 && resEl) resEl.innerHTML = errorHtml;
+                if (!r2 && trackedResEl) trackedResEl.innerHTML = errorHtml;
                 scheduleRetry();
             }
         }, delay);
