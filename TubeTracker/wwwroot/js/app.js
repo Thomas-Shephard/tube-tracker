@@ -924,12 +924,41 @@ document.addEventListener('DOMContentLoaded', () => {
         stopPolling();
         isRetrying = false;
         retryDelay = 5000;
-        refreshData();
-        pollingInterval = setInterval(refreshData, 60000);
+
+        // Calculate staleness to avoid aggressive refreshing on tab focus
+        const now = new Date();
+        let lastUpdate = lastUpdateLineTime;
+        // Use the oldest timestamp to ensure we refresh if EITHER is stale
+        if (lastUpdateLineTime && lastUpdateTrackedTime) {
+            lastUpdate = lastUpdateLineTime < lastUpdateTrackedTime ? lastUpdateLineTime : lastUpdateTrackedTime;
+        } else if (!lastUpdateLineTime && lastUpdateTrackedTime) {
+            lastUpdate = lastUpdateTrackedTime;
+        }
+
+        let nextRefreshDelay = 0;
+        if (lastUpdate) {
+            const elapsed = now - lastUpdate;
+            if (elapsed < 60000) {
+                nextRefreshDelay = 60000 - elapsed;
+            }
+        }
+
+        // Start UI timer immediately
         timeAgoInterval = setInterval(() => {
             updateTimeAgo('api-result', lastUpdateLineTime);
             updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
         }, 1000);
+
+        if (nextRefreshDelay <= 0) {
+            refreshData();
+            pollingInterval = setInterval(refreshData, 60000);
+        } else {
+            console.log(`Data fresh. Next refresh in ${Math.round(nextRefreshDelay/1000)}s`);
+            retryTimeout = setTimeout(() => {
+                refreshData();
+                pollingInterval = setInterval(refreshData, 60000);
+            }, nextRefreshDelay);
+        }
     }
 
     function stopPolling() {
