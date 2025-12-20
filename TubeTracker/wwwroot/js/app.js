@@ -139,12 +139,7 @@ function updateTimeAgo(elementId, timestamp) {
     else if (seconds < 120) text = "1 minute ago";
     else text = `${Math.floor(seconds / 60)} minutes ago`;
 
-    // Special state for nearing refresh (assuming 60s interval)
-    if (seconds >= 55) {
-        el.innerHTML = `<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span>Refreshing...</span>`;
-    } else {
-        el.innerText = `Last updated: ${text}`;
-    }
+    el.innerText = `Last updated: ${text}`;
 }
 
 function showSkeleton(containerId, count = 6) {
@@ -172,7 +167,7 @@ async function loadTubeStatus() {
     }
     
     try {
-        const response = await fetch('/api/status/lines');
+        const response = await fetch('/api/status/lines?_=' + new Date().getTime());
         if (response.ok) {
             let lines = await response.json();
             lastUpdateLineTime = new Date();
@@ -248,7 +243,7 @@ async function loadTrackedStatus() {
     }
 
     try {
-        const response = await fetch('/api/status/tracked', { headers: getAuthHeader() });
+        const response = await fetch('/api/status/tracked?_=' + new Date().getTime(), { headers: getAuthHeader() });
         if (response.ok) {
             const data = await response.json();
             lastUpdateTrackedTime = new Date();
@@ -804,8 +799,6 @@ document.addEventListener('DOMContentLoaded', () => {
             trackedStatus.classList.remove('d-none');
             const statusTitle = document.getElementById('status-title');
             if (statusTitle) statusTitle.innerText = "All Line Statuses";
-            loadTrackedStatus();
-            setInterval(loadTrackedStatus, 60000);
         }
     } else {
         const guestHero = document.getElementById('guest-hero');
@@ -818,13 +811,36 @@ document.addEventListener('DOMContentLoaded', () => {
             window.location.href = '/login.html';
         }
     }
-    
-    loadTubeStatus();
-    setInterval(loadTubeStatus, 60000);
 
-    // Live 'time ago' updates
-    setInterval(() => {
-        updateTimeAgo('api-result', lastUpdateLineTime);
-        updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
-    }, 1000);
+    let pollingInterval, timeAgoInterval;
+
+    function refreshData() {
+        loadTubeStatus();
+        if (isLoggedIn() && document.getElementById('tracked-status')) {
+            loadTrackedStatus();
+        }
+    }
+
+    function startPolling() {
+        stopPolling();
+        refreshData();
+        pollingInterval = setInterval(refreshData, 60000);
+        timeAgoInterval = setInterval(() => {
+            updateTimeAgo('api-result', lastUpdateLineTime);
+            updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
+        }, 1000);
+    }
+
+    function stopPolling() {
+        if (pollingInterval) clearInterval(pollingInterval);
+        if (timeAgoInterval) clearInterval(timeAgoInterval);
+    }
+
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) stopPolling();
+        else startPolling();
+    });
+
+    // Start initial polling
+    startPolling();
 });
