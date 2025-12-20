@@ -217,7 +217,6 @@ async function loadTubeStatus() {
                 cardEl.style.animationDelay = `${index * 0.05}s`;
                 listContainer.appendChild(cardEl);
             });
-            initTooltips();
         }
     } catch (e) { console.error(e); }
 }
@@ -341,7 +340,6 @@ async function loadTrackedStatus() {
                 cardEl.style.animationDelay = `${(sortedLines.length + index) * 0.05}s`;
                 stationList.appendChild(cardEl);
             });
-            initTooltips();
         } else if (response.status === 401) {
             logout();
         }
@@ -387,13 +385,12 @@ function showStatusDetail(name, detailsJson) {
 }
 
 function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlagged = false, details = null, hasDetails = false) {
-    const bell = isFlagged ? '<i class="bi bi-bell-fill me-2" title="Matches your notification settings"></i>' : '';
+    const bell = isFlagged ? '<i class="bi bi-bell-fill me-2"></i>' : '';
     
     let infoIcon = '';
     let cardAttr = '';
     if (details && (details.length > 2 || hasDetails)) {
         const detailsJson = encodeURIComponent(JSON.stringify(details));
-        const tooltipText = joinList([...new Set(details.map(d => d.description))]).replace(/'/g, "&apos;");
         const safeDetailsJson = detailsJson.replace(/'/g, "\\'");
         const safeName = name.replace(/'/g, "\\'");
         
@@ -402,7 +399,7 @@ function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlag
             infoIcon = ` <i class="bi bi-info-circle-fill ms-1"></i>`;
         }
         
-        cardAttr = `data-bs-toggle="tooltip" data-bs-title="${tooltipText}" onclick="showStatusDetail('${safeName}', '${safeDetailsJson}')" style="cursor: pointer;"`;
+        cardAttr = `onclick="showStatusDetail('${safeName}', '${safeDetailsJson}')" style="cursor: pointer;"`;
     }
 
     return `
@@ -418,14 +415,6 @@ function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlag
             </div>
         </div>
     `;
-}
-
-let activeTooltips = [];
-function initTooltips() {
-    activeTooltips.forEach(t => t.dispose());
-    activeTooltips = [];
-    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
-    activeTooltips = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 }
 
 // Global scope for onclick
