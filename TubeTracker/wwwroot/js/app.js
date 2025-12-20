@@ -131,6 +131,9 @@ function updateTimeAgo(elementId, timestamp) {
     const el = document.getElementById(elementId);
     if (!el || !timestamp) return;
 
+    // Don't overwrite error messages
+    if (el.querySelector('.text-danger')) return;
+
     const seconds = Math.floor((new Date() - timestamp) / 1000);
     
     let text = "";
@@ -139,7 +142,12 @@ function updateTimeAgo(elementId, timestamp) {
     else if (seconds < 120) text = "1 minute ago";
     else text = `${Math.floor(seconds / 60)} minutes ago`;
 
-    el.innerText = `Last updated: ${text}`;
+    // Special state for nearing refresh (assuming 60s interval)
+    if (seconds >= 55) {
+        el.innerHTML = `<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span>Refreshing...</span>`;
+    } else {
+        el.innerText = `Last updated: ${text}`;
+    }
 }
 
 function showSkeleton(containerId, count = 6) {
