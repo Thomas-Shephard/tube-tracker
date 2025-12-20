@@ -131,11 +131,20 @@ function updateTimeAgo(elementId, timestamp) {
     const el = document.getElementById(elementId);
     if (!el || !timestamp) return;
 
-    // Don't overwrite error messages
-    if (el.querySelector('.text-danger')) return;
-
     const seconds = Math.floor((new Date() - timestamp) / 1000);
     
+    // If it's been more than 5 minutes (300s), show unknown status
+    if (seconds >= 300) {
+        el.innerHTML = `<span class="text-muted"><i class="bi bi-question-circle-fill me-1"></i>Data stale (5m+).</span>`;
+        const containerId = elementId === 'api-result' ? 'tube-list' : (elementId === 'tracked-api-result' ? 'tracked-line-list' : null);
+        if (containerId) markStatusUnknown(containerId);
+        if (elementId === 'tracked-api-result') markStatusUnknown('tracked-station-list');
+        return;
+    }
+
+    // Don't overwrite error messages unless it's a "Refreshing" state we want to show
+    if (el.querySelector('.text-danger') && seconds < 55) return;
+
     let text = "";
     if (seconds < 10) text = "Just now";
     else if (seconds < 60) text = `${seconds} seconds ago`;
@@ -148,6 +157,22 @@ function updateTimeAgo(elementId, timestamp) {
     } else {
         el.innerText = `Last updated: ${text}`;
     }
+}
+
+function markStatusUnknown(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    const cards = container.querySelectorAll('.line-card');
+    cards.forEach(card => {
+        card.classList.remove('status-good', 'status-minor', 'status-severe', 'flagged');
+        card.classList.add('status-unknown');
+        const badge = card.querySelector('.badge');
+        if (badge) {
+            badge.className = 'badge bg-secondary';
+            badge.innerText = 'Unknown';
+        }
+    });
 }
 
 function showSkeleton(containerId, count = 6) {
@@ -179,6 +204,8 @@ async function loadTubeStatus() {
         if (response.ok) {
             let lines = await response.json();
             lastUpdateLineTime = new Date();
+            // Clear any error state before updating time
+            resultElement.innerHTML = ''; 
             updateTimeAgo('api-result', lastUpdateLineTime);
             listContainer.innerHTML = '';
 
@@ -220,12 +247,15 @@ async function loadTubeStatus() {
                 cardEl.style.animationDelay = `${index * 0.05}s`;
                 listContainer.appendChild(cardEl);
             });
+            return true;
         } else {
             resultElement.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle-fill me-1"></i>Failed to update.</span>`;
+            return false;
         }
     } catch (e) {
         console.error(e);
         resultElement.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle-fill me-1"></i>Failed to update.</span>`;
+        return false;
     }
 }
 
@@ -260,6 +290,8 @@ async function loadTrackedStatus() {
         if (response.ok) {
             const data = await response.json();
             lastUpdateTrackedTime = new Date();
+            // Clear any error state before updating time
+            resultElement.innerHTML = '';
             updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
             
             const emptyLineHtml = `
@@ -348,14 +380,18 @@ async function loadTrackedStatus() {
                 cardEl.style.animationDelay = `${(sortedLines.length + index) * 0.05}s`;
                 stationList.appendChild(cardEl);
             });
+            return true;
         } else if (response.status === 401) {
             logout();
+            return false;
         } else {
             resultElement.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle-fill me-1"></i>Failed to update.</span>`;
+            return false;
         }
     } catch (e) {
         console.error(e);
         if (resultElement) resultElement.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle-fill me-1"></i>Failed to update.</span>`;
+        return false;
     }
 }
 
@@ -830,24 +866,61 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    let pollingInterval, timeAgoInterval;
+    let pollingInterval, timeAgoInterval, retryTimeout;
+    let retryDelay = 5000;
+    const maxRetryDelay = 60000;
+    let isRetrying = false;
 
-    function refreshData() {
+    async function refreshData() {
         const refreshingHtml = `<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span>Refreshing...</span>`;
         const resEl = document.getElementById('api-result');
         const trackedResEl = document.getElementById('tracked-api-result');
         
-        if (resEl && lastUpdateLineTime) resEl.innerHTML = refreshingHtml;
-        if (trackedResEl && lastUpdateTrackedTime && isLoggedIn() && isVerified()) trackedResEl.innerHTML = refreshingHtml;
+        // Only show refreshing if we have old data or if it's a manual/scheduled refresh (not a retry)
+        if (!isRetrying) {
+             if (resEl && lastUpdateLineTime) resEl.innerHTML = refreshingHtml;
+             if (trackedResEl && lastUpdateTrackedTime && isLoggedIn() && isVerified()) trackedResEl.innerHTML = refreshingHtml;
+        }
 
-        loadTubeStatus();
-        if (isLoggedIn() && document.getElementById('tracked-status')) {
-            loadTrackedStatus();
+        const p1 = loadTubeStatus();
+        const p2 = (isLoggedIn() && document.getElementById('tracked-status')) ? loadTrackedStatus() : Promise.resolve(true);
+
+        const [r1, r2] = await Promise.all([p1, p2]);
+        
+        if (r1 && r2) {
+            // Success
+            retryDelay = 5000;
+            isRetrying = false;
+        } else {
+            // Failure
+            scheduleRetry();
+        }
+    }
+
+    function scheduleRetry() {
+        isRetrying = true;
+        stopPolling(); // Stop standard polling to avoid conflicts
+        
+        console.log(`Update failed. Retrying in ${retryDelay/1000}s...`);
+        retryTimeout = setTimeout(() => {
+            refreshData();
+            // Increase delay for next time, capped at max
+            retryDelay = Math.min(retryDelay * 2, maxRetryDelay);
+        }, retryDelay);
+        
+        // Restart time-ago updates so the "Failed to update" message or stale time can still be seen/managed
+        if (!timeAgoInterval) {
+             timeAgoInterval = setInterval(() => {
+                updateTimeAgo('api-result', lastUpdateLineTime);
+                updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
+            }, 1000);
         }
     }
 
     function startPolling() {
         stopPolling();
+        isRetrying = false;
+        retryDelay = 5000;
         refreshData();
         pollingInterval = setInterval(refreshData, 60000);
         timeAgoInterval = setInterval(() => {
@@ -859,6 +932,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function stopPolling() {
         if (pollingInterval) clearInterval(pollingInterval);
         if (timeAgoInterval) clearInterval(timeAgoInterval);
+        if (retryTimeout) clearTimeout(retryTimeout);
+        pollingInterval = null;
+        timeAgoInterval = null; // Ensure we clear this references
     }
 
     document.addEventListener('visibilitychange', () => {
