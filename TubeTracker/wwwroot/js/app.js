@@ -212,8 +212,13 @@ async function loadTubeStatus() {
                 cardEl.style.animationDelay = `${index * 0.05}s`;
                 listContainer.appendChild(cardEl);
             });
+        } else {
+            resultElement.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle-fill me-1"></i>Failed to update.</span>`;
         }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error(e);
+        resultElement.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle-fill me-1"></i>Failed to update.</span>`;
+    }
 }
 
 async function loadTrackedStatus() {
@@ -337,8 +342,13 @@ async function loadTrackedStatus() {
             });
         } else if (response.status === 401) {
             logout();
+        } else {
+            resultElement.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle-fill me-1"></i>Failed to update.</span>`;
         }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+        console.error(e);
+        if (resultElement) resultElement.innerHTML = `<span class="text-danger"><i class="bi bi-exclamation-circle-fill me-1"></i>Failed to update.</span>`;
+    }
 }
 
 function showStatusDetail(name, detailsJson) {
@@ -815,6 +825,13 @@ document.addEventListener('DOMContentLoaded', () => {
     let pollingInterval, timeAgoInterval;
 
     function refreshData() {
+        const refreshingHtml = `<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span>Refreshing...</span>`;
+        const resEl = document.getElementById('api-result');
+        const trackedResEl = document.getElementById('tracked-api-result');
+        
+        if (resEl && lastUpdateLineTime) resEl.innerHTML = refreshingHtml;
+        if (trackedResEl && lastUpdateTrackedTime && isLoggedIn() && isVerified()) trackedResEl.innerHTML = refreshingHtml;
+
         loadTubeStatus();
         if (isLoggedIn() && document.getElementById('tracked-status')) {
             loadTrackedStatus();
