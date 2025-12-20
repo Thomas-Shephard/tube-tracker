@@ -882,6 +882,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isRetrying = false;
 
     async function refreshData() {
+        const startTime = Date.now();
         const refreshingHtml = `<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span>Refreshing...</span>`;
         const resEl = document.getElementById('api-result');
         const trackedResEl = document.getElementById('tracked-api-result');
@@ -895,14 +896,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const [r1, r2] = await Promise.all([p1, p2]);
         
-        if (r1 && r2) {
-            // Success
-            retryDelay = 5000;
-            isRetrying = false;
-        } else {
-            // Failure
-            scheduleRetry();
-        }
+        const elapsed = Date.now() - startTime;
+        const delay = Math.max(0, 3000 - elapsed);
+
+        setTimeout(() => {
+            if (r1 && r2) {
+                // Success
+                retryDelay = 5000;
+                isRetrying = false;
+            } else {
+                // Failure
+                scheduleRetry();
+            }
+        }, delay);
     }
 
     function scheduleRetry() {
