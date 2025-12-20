@@ -374,13 +374,20 @@ async function loadTrackedStatus() {
                 const activeStatuses = station.activeStatuses;
                 const hasIssues = station.isFlagged;
                 
+                // Manually build details for modal since stations don't use the Line severity schema
+                const details = activeStatuses.map(s => ({
+                    description: s.statusDescription,
+                    reason: '' // Station API usually has the description in the status itself
+                }));
+                const hasDetails = hasIssues && details.length > 0;
+                
                 const badgeText = hasIssues ? "Disruption" : "No disruptions";
                 const reasons = hasIssues ? activeStatuses.map(s => s.statusDescription) : [];
                 
                 let badgeClass = hasIssues ? "bg-warning text-dark" : "bg-success";
                 let statusClass = hasIssues ? "status-minor" : "status-good";
 
-                const cardHtml = createCardHtml(station.commonName, badgeText, badgeClass, statusClass, reasons, hasIssues);
+                const cardHtml = createCardHtml(station.commonName, badgeText, badgeClass, statusClass, reasons, hasIssues, details, hasDetails);
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = cardHtml;
                 const cardEl = tempDiv.firstElementChild;
@@ -896,7 +903,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const delay = Math.max(0, 3000 - elapsed);
 
         setTimeout(() => {
-            const errorHtml = `<span class="text-danger"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-exclamation-circle-fill me-1" viewBox="0 0 16 16" style="vertical-align: -0.125em;"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>Failed to update live statuses.</span>`;
+            const errorHtml = `<span class="text-danger" style="cursor: pointer;" onclick="forceRefresh()" title="Click to retry"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-exclamation-circle-fill me-1" viewBox="0 0 16 16" style="vertical-align: -0.125em;"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>Failed to update live statuses.</span>`;
 
             if (r1 && r2) {
                 // Success
@@ -937,7 +944,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function scheduleRetry() {
-        if (document.hidden) return;
+        if (document.hidden || !navigator.onLine) return;
 
         isRetrying = true;
         stopPolling(); // Stop standard polling to avoid conflicts
@@ -1007,6 +1014,24 @@ document.addEventListener('DOMContentLoaded', () => {
         pollingInterval = null;
         timeAgoInterval = null; // Ensure we clear this references
     }
+
+    function forceRefresh() {
+        stopPolling();
+        isRetrying = false;
+        retryDelay = 5000;
+        refreshData();
+        pollingInterval = setInterval(refreshData, 60000);
+        if (!timeAgoInterval) {
+             timeAgoInterval = setInterval(() => {
+                updateTimeAgo('api-result', lastUpdateLineTime);
+                updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
+            }, 1000);
+        }
+    }
+    window.forceRefresh = forceRefresh;
+
+    window.addEventListener('online', () => startPolling());
+    window.addEventListener('offline', () => stopPolling());
 
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) stopPolling();
