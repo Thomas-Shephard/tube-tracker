@@ -913,8 +913,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             } else {
                 // Failure
-                if (!r1 && resEl) resEl.innerHTML = errorHtml;
-                if (!r2 && trackedResEl) trackedResEl.innerHTML = errorHtml;
+                const checkStale = (ts) => ts && ((Date.now() - ts) / 1000 >= 300);
+
+                if (!r1 && resEl) {
+                    if (checkStale(lastUpdateLineTime)) {
+                        resEl.innerHTML = '';
+                        updateTimeAgo('api-result', lastUpdateLineTime);
+                    } else {
+                        resEl.innerHTML = errorHtml;
+                    }
+                }
+                if (!r2 && trackedResEl) {
+                    if (checkStale(lastUpdateTrackedTime)) {
+                        trackedResEl.innerHTML = '';
+                        updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
+                    } else {
+                        trackedResEl.innerHTML = errorHtml;
+                    }
+                }
                 scheduleRetry();
             }
         }, delay);
