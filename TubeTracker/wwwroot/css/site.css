@@ -51,9 +51,22 @@ body {
     animation: fadeIn 0.4s ease-out forwards;
 }
 
-.skeleton-card {
-    height: 112px;
-    border-radius: 12px;
+.skeleton-title {
+    height: 24px;
+    background-color: #f0f0f0;
+    animation: skeleton-pulse 1.5s infinite ease-in-out;
+}
+
+.skeleton-badge {
+    height: 24px;
+    width: 80px;
+    background-color: #f0f0f0;
+    animation: skeleton-pulse 1.5s infinite ease-in-out;
+}
+
+.skeleton-text {
+    height: 16px;
+    background-color: #f0f0f0;
     animation: skeleton-pulse 1.5s infinite ease-in-out;
 }
 

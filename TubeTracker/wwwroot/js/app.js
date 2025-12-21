@@ -201,7 +201,15 @@ function showSkeleton(containerId, count = 6) {
     for (let i = 0; i < count; i++) {
         html += `
             <div class="col-md-6 col-lg-4">
-                <div class="skeleton-card shadow-sm mb-4"></div>
+                <div class="card h-100 shadow-sm line-card border-0">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div class="skeleton-title rounded w-50"></div>
+                            <div class="skeleton-badge rounded"></div>
+                        </div>
+                        <div class="skeleton-text rounded w-75 mt-3"></div>
+                    </div>
+                </div>
             </div>
         `;
     }
