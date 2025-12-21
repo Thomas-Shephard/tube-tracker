@@ -491,7 +491,7 @@ function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlag
             infoIcon = ` <i class="bi bi-info-circle-fill ms-1"></i>`;
         }
         
-        cardAttr = `onclick="showStatusDetail('${safeName}', '${safeDetailsJson}')" style="cursor: pointer;"`;
+        cardAttr = `onclick="showStatusDetail('${safeName}', '${safeDetailsJson}')" onkeydown="if(event.key==='Enter'||event.key===' '){showStatusDetail('${safeName}', '${safeDetailsJson}'); event.preventDefault();}" tabindex="0" role="button" style="cursor: pointer;"`;
     }
 
     return `
