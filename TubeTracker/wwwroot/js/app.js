@@ -134,15 +134,6 @@ function updateTimeAgo(elementId, timestamp) {
     // Don't overwrite refreshing state
     if (el.querySelector('.spinner-border')) return;
 
-    if (!navigator.onLine) {
-        el.innerHTML = `<span class="text-danger"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-wifi-off me-1" viewBox="0 0 16 16" style="vertical-align: -0.125em;"><path d="M10.706 3.294A12.545 12.545 0 0 0 8 3C5.259 3 2.723 3.882.663 5.379a.485.485 0 0 0-.048.736.518.518 0 0 0 .668.05A11.448 11.448 0 0 1 8 4c2.507 0 4.827.802 6.716 2.164.205.148.49.13.668-.049.197-.199.19-.52-.048-.736a12.545 12.545 0 0 0-4.63-2.085zm-2.706 2.706a.5.5 0 0 0-.707 0L.646 12.646a.5.5 0 0 0 .708.708l6.646-6.647zm2.707 0L4.354 12.354a.5.5 0 0 0 .708.708l6.353-6.354a.5.5 0 0 0 0-.708z"/><path d="M8.293 6.707a.5.5 0 0 0-.707 0L.646 13.646a.5.5 0 0 0 .708.708l7.293-7.293zm2.707 0L3.646 13.646a.5.5 0 0 0 .708.708l7.354-7.354a.5.5 0 0 0 0-.708zM10.293 8.707a.5.5 0 0 0-.707 0L5.293 12.999a.5.5 0 0 0 .707.708l4.293-4.293zm2.707 0L8.293 13.707a.5.5 0 0 0 .707.708l4.707-4.707a.5.5 0 0 0 0-.708z"/></svg>No internet connection.</span>`;
-        // Also grey out cards if we are offline
-        const containerId = elementId === 'api-result' ? 'tube-list' : (elementId === 'tracked-api-result' ? 'tracked-line-list' : null);
-        if (containerId) markStatusUnknown(containerId);
-        if (elementId === 'tracked-api-result') markStatusUnknown('tracked-station-list');
-        return;
-    }
-
     const seconds = Math.floor((new Date() - timestamp) / 1000);
     
     // If it's been more than 5 minutes (300s), show unknown status
@@ -989,7 +980,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function scheduleRetry() {
-        if (document.hidden || !navigator.onLine) return;
+        if (document.hidden) return;
 
         isRetrying = true;
         stopPolling(); // Stop standard polling to avoid conflicts
@@ -1074,13 +1065,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     window.forceRefresh = forceRefresh;
-
-    window.addEventListener('online', () => startPolling());
-    window.addEventListener('offline', () => {
-        stopPolling();
-        updateTimeAgo('api-result', lastUpdateLineTime);
-        updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
-    });
 
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) stopPolling();
