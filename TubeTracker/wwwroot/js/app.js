@@ -383,7 +383,7 @@ async function loadTrackedStatus() {
                 const activeStatuses = station.activeStatuses;
                 const hasIssues = station.isFlagged;
                 
-                // Manually build details for modal since stations don't use the Line severity schema
+                // Manually build details for modal
                 const details = activeStatuses.map(s => ({
                     description: 'Disruption',
                     reason: s.statusDescription
@@ -435,7 +435,7 @@ function showStatusDetail(name, detailsJson) {
         let html = '';
         Object.values(grouped).forEach((group, i) => {
             const badges = group.statuses.map(s => {
-                const colorClass = s.includes('Good') ? 'bg-success' : (s.includes('Minor') ? 'bg-warning text-dark' : 'bg-danger');
+                const colorClass = s.includes('Good') ? 'bg-success' : (s.includes('Minor') || s === 'Disruption' ? 'bg-warning text-dark' : 'bg-danger');
                 return `<span class="badge ${colorClass} me-2">${s}</span>`;
             }).join('');
 
