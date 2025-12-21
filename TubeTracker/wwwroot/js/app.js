@@ -385,8 +385,8 @@ async function loadTrackedStatus() {
                 
                 // Manually build details for modal since stations don't use the Line severity schema
                 const details = activeStatuses.map(s => ({
-                    description: s.statusDescription,
-                    reason: '' // Station API usually has the description in the status itself
+                    description: 'Disruption',
+                    reason: s.statusDescription
                 }));
                 const hasDetails = hasIssues && details.length > 0;
                 
