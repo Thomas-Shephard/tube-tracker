@@ -147,7 +147,7 @@ function updateTimeAgo(elementId, timestamp) {
     
     // If it's been more than 5 minutes (300s), show unknown status
     if (seconds >= 300) {
-        el.innerHTML = `<span class="text-muted"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-question-circle me-1" viewBox="0 0 16 16" style="vertical-align: -0.125em;"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/><path d="M5.255 5.786a.237.237 0 0 0 .241.247h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 0 0 .25.246h.811a.25.25 0 0 0 .25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286zM8 11.832a.927.927 0 1 0 0-1.854.927.927 0 0 0 0 1.854z"/></svg>Live statuses are currently unavailable.</span>`;
+        el.innerHTML = `<span class="text-muted"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-question-circle-fill me-1" viewBox="0 0 16 16" style="vertical-align: -0.125em;"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM5.496 6.033h.825c.138 0 .248-.113.266-.25.09-.656.54-1.134 1.342-1.134.686 0 1.314.343 1.314 1.168 0 .635-.374.927-.965 1.371-.673.489-1.206 1.06-1.168 1.987l.003.217a.25.25 0 0 0 .25.246h.811a.25.25 0 0 0 .25-.25v-.105c0-.718.273-.927 1.01-1.486.609-.463 1.244-.977 1.244-2.056 0-1.511-1.276-2.241-2.673-2.241-1.267 0-2.655.59-2.75 2.286a.237.237 0 0 0 .241.247zm2.325 6.443c.61 0 1.029-.394 1.029-.927 0-.552-.42-.94 1.029-.94-.584 0-1.009.388-1.009.94 0 .533.425.927 1.01.927z"/></svg>Live statuses are currently unavailable.</span>`;
         const containerId = elementId === 'api-result' ? 'tube-list' : (elementId === 'tracked-api-result' ? 'tracked-line-list' : null);
         if (containerId) markStatusUnknown(containerId);
         if (elementId === 'tracked-api-result') markStatusUnknown('tracked-station-list');
@@ -223,55 +223,12 @@ function showSkeleton(containerId, count = 6) {
     container.innerHTML = html;
 }
 
-function renderTubeLines(lines) {
+async function loadTubeStatus() {
+    const resultElement = document.getElementById('api-result');
     const listContainer = document.getElementById('tube-list');
     if (!listContainer) return;
-    
-    listContainer.innerHTML = '';
 
-    // Handle both "statuses" and "Statuses" from API
-    lines = lines.map(line => {
-        const activeStatuses = line.statuses || line.Statuses || [];
-        return {
-            ...line,
-            activeStatuses: activeStatuses,
-            minSeverityId: activeStatuses.length > 0 
-                ? Math.min(...activeStatuses.map(s => s.severity.severityLevel)) 
-                : 10
-        };
-    }).sort((a, b) => (a.minSeverityId - b.minSeverityId) || a.name.localeCompare(b.name));
-
-    lines.forEach((line, index) => {
-        const activeStatuses = line.activeStatuses;
-        const { display: severityDescription, full: details, hasDetails } = formatSeverity(activeStatuses);
-        const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
-        
-        const maxUrgency = activeStatuses.length ? Math.max(...activeStatuses.map(s => s.severity.urgency)) : 0;
-        
-        let badgeClass = "bg-success";
-        let statusClass = "status-good";
-        
-        if (maxUrgency >= 2) {
-            badgeClass = "bg-danger";
-            statusClass = "status-severe";
-        } else if (maxUrgency === 1) {
-            badgeClass = "bg-warning text-dark";
-            statusClass = "status-minor";
-        }
-
-        const cardHtml = createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, false, details, hasDetails);
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = cardHtml;
-        const cardEl = tempDiv.firstElementChild;
-        cardEl.classList.add('fade-in');
-        cardEl.style.animationDelay = `${index * 0.05}s`;
-        listContainer.appendChild(cardEl);
-    });
-}
-
-async function loadTubeStatus(shouldRender = true) {
-    const resultElement = document.getElementById('api-result');
-    if (shouldRender && !lastUpdateLineTime) {
+    if (!lastUpdateLineTime) {
         resultElement.innerText = "Fetching latest data...";
         const cachedCount = parseInt(localStorage.getItem('total-lines-count')) || 11;
         showSkeleton('tube-list', cachedCount);
@@ -285,14 +242,51 @@ async function loadTubeStatus(shouldRender = true) {
             // Cache count for next load
             localStorage.setItem('total-lines-count', lines.length);
 
-            if (shouldRender) {
-                lastUpdateLineTime = new Date();
-                // Clear any error state before updating time
-                resultElement.innerHTML = ''; 
-                updateTimeAgo('api-result', lastUpdateLineTime);
-                renderTubeLines(lines);
-            }
-            return lines;
+            lastUpdateLineTime = new Date();
+            // Clear any error state before updating time
+            resultElement.innerHTML = ''; 
+            updateTimeAgo('api-result', lastUpdateLineTime);
+            listContainer.innerHTML = '';
+
+            // Handle both "statuses" and "Statuses" from API
+            lines = lines.map(line => {
+                const activeStatuses = line.statuses || line.Statuses || [];
+                return {
+                    ...line,
+                    activeStatuses: activeStatuses,
+                    minSeverityId: activeStatuses.length > 0 
+                        ? Math.min(...activeStatuses.map(s => s.severity.severityLevel)) 
+                        : 10
+                };
+            }).sort((a, b) => (a.minSeverityId - b.minSeverityId) || a.name.localeCompare(b.name));
+
+            lines.forEach((line, index) => {
+                const activeStatuses = line.activeStatuses;
+                const { display: severityDescription, full: details, hasDetails } = formatSeverity(activeStatuses);
+                const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
+                
+                const maxUrgency = activeStatuses.length ? Math.max(...activeStatuses.map(s => s.severity.urgency)) : 0;
+                
+                let badgeClass = "bg-success";
+                let statusClass = "status-good";
+                
+                if (maxUrgency >= 2) {
+                    badgeClass = "bg-danger";
+                    statusClass = "status-severe";
+                } else if (maxUrgency === 1) {
+                    badgeClass = "bg-warning text-dark";
+                    statusClass = "status-minor";
+                }
+
+                const cardHtml = createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, false, details, hasDetails);
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = cardHtml;
+                const cardEl = tempDiv.firstElementChild;
+                cardEl.classList.add('fade-in');
+                cardEl.style.animationDelay = `${index * 0.05}s`;
+                listContainer.appendChild(cardEl);
+            });
+            return true;
         } else {
             return false;
         }
@@ -302,113 +296,14 @@ async function loadTubeStatus(shouldRender = true) {
     }
 }
 
-function renderTrackedData(data) {
-    const lineList = document.getElementById('tracked-line-list');
-    const stationList = document.getElementById('tracked-station-list');
-    if (!lineList) return;
-
-    const emptyLineHtml = `
-        <div class="col-12">
-            <div class="p-4 bg-light rounded-4 border border-dashed text-start">
-                <p class="text-muted mb-3">You are not tracking any lines yet. Start tracking to receive personalized updates and notifications.</p>
-                <a href="/tracking.html#lines" class="btn btn-primary btn-sm px-4">Track your first line</a>
-            </div>
-        </div>
-    `;
-    const emptyStationHtml = `
-        <div class="col-12">
-            <div class="p-4 bg-light rounded-4 border border-dashed text-start">
-                <p class="text-muted mb-3">You are not tracking any stations yet. Monitor specific stations for disruptions and lift closures.</p>
-                <a href="/tracking.html#stations" class="btn btn-primary btn-sm px-4">Find stations to track</a>
-            </div>
-        </div>
-    `;
-
-    lineList.innerHTML = data.lines.length ? '' : emptyLineHtml;
-    stationList.innerHTML = data.stations.length ? '' : emptyStationHtml;
-
-    const sortedLines = data.lines.map(line => {
-        const activeStatuses = line.statuses || line.Statuses || [];
-        const maxUrgency = activeStatuses.length ? Math.max(...activeStatuses.map(s => s.severity.urgency)) : 0;
-        // MinUrgency defaults to 2 (Severe) if not set, or we can use the value from the object
-        const isFlagged = maxUrgency >= (line.minUrgency ?? 2) && maxUrgency > 0;
-        return { ...line, activeStatuses, isFlagged, maxUrgency };
-    }).sort((a, b) => {
-        if (a.isFlagged && !b.isFlagged) return -1;
-        if (!a.isFlagged && b.isFlagged) return 1;
-        return (b.maxUrgency - a.maxUrgency) || a.name.localeCompare(b.name);
-    });
-
-    sortedLines.forEach((line, index) => {
-        const activeStatuses = line.activeStatuses;
-        const { display: severityDescription, full: details, hasDetails } = formatSeverity(activeStatuses);
-        const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
-        const maxUrgency = line.maxUrgency || 0;
-        
-        let badgeClass = "bg-success";
-        let statusClass = "status-good";
-        
-        if (maxUrgency >= 2) {
-            badgeClass = "bg-danger";
-            statusClass = "status-severe";
-        } else if (maxUrgency === 1) {
-            badgeClass = "bg-warning text-dark";
-            statusClass = "status-minor";
-        }
-        
-        const cardHtml = createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged, details, hasDetails);
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = cardHtml;
-        const cardEl = tempDiv.firstElementChild;
-        cardEl.classList.add('fade-in');
-        cardEl.style.animationDelay = `${index * 0.05}s`;
-        lineList.appendChild(cardEl);
-    });
-
-    const sortedStations = data.stations.map(station => {
-        const activeStatuses = station.statuses || station.Statuses || [];
-        const isFlagged = activeStatuses.length > 0 && activeStatuses.some(s => s.statusDescription !== 'No Issues');
-        return { ...station, activeStatuses, isFlagged };
-    }).sort((a, b) => {
-        if (a.isFlagged && !b.isFlagged) return -1;
-        if (!a.isFlagged && b.isFlagged) return 1;
-        return a.commonName.localeCompare(b.commonName);
-    });
-
-    sortedStations.forEach((station, index) => {
-        const activeStatuses = station.activeStatuses;
-        const hasIssues = station.isFlagged;
-        
-        // Manually build details for modal
-        const details = activeStatuses.map(s => ({
-            description: 'Disruption',
-            reason: s.statusDescription
-        }));
-        const hasDetails = hasIssues && details.length > 0;
-        
-        const badgeText = hasIssues ? "Disruption" : "No disruptions";
-        const reasons = hasIssues ? activeStatuses.map(s => s.statusDescription) : [];
-        
-        let badgeClass = hasIssues ? "bg-warning text-dark" : "bg-success";
-        let statusClass = hasIssues ? "status-minor" : "status-good";
-
-        const cardHtml = createCardHtml(station.commonName, badgeText, badgeClass, statusClass, [], hasIssues, details, hasDetails);
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = cardHtml;
-        const cardEl = tempDiv.firstElementChild;
-        cardEl.classList.add('fade-in');
-        cardEl.style.animationDelay = `${(sortedLines.length + index) * 0.05}s`;
-        stationList.appendChild(cardEl);
-    });
-}
-
-async function loadTrackedStatus(shouldRender = true) {
+async function loadTrackedStatus() {
     if (!isLoggedIn()) return;
     
     const trackedStatusSection = document.getElementById('tracked-status');
     const unverifiedMsg = document.getElementById('tracked-unverified-msg');
     const verifiedContent = document.getElementById('tracked-verified-content');
     const lineList = document.getElementById('tracked-line-list');
+    const stationList = document.getElementById('tracked-station-list');
     const resultElement = document.getElementById('tracked-api-result');
     if (!lineList) return;
 
@@ -423,7 +318,7 @@ async function loadTrackedStatus(shouldRender = true) {
     if (unverifiedMsg) unverifiedMsg.classList.add('d-none');
     if (verifiedContent) verifiedContent.classList.remove('d-none');
 
-    if (shouldRender && !lastUpdateTrackedTime) {
+    if (!lastUpdateTrackedTime) {
         const cachedLines = parseInt(localStorage.getItem('tracked-lines-count')) || 3;
         const cachedStations = parseInt(localStorage.getItem('tracked-stations-count')) || 3;
         showSkeleton('tracked-line-list', cachedLines);
@@ -439,14 +334,105 @@ async function loadTrackedStatus(shouldRender = true) {
             localStorage.setItem('tracked-lines-count', data.lines.length);
             localStorage.setItem('tracked-stations-count', data.stations.length);
 
-            if (shouldRender) {
-                lastUpdateTrackedTime = new Date();
-                // Clear any error state before updating time
-                resultElement.innerHTML = '';
-                updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
-                renderTrackedData(data);
-            }
-            return data;
+            lastUpdateTrackedTime = new Date();
+            // Clear any error state before updating time
+            resultElement.innerHTML = '';
+            updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
+            
+            const emptyLineHtml = `
+                <div class="col-12">
+                    <div class="p-4 bg-light rounded-4 border border-dashed text-start">
+                        <p class="text-muted mb-3">You are not tracking any lines yet. Start tracking to receive personalized updates and notifications.</p>
+                        <a href="/tracking.html#lines" class="btn btn-primary btn-sm px-4">Track your first line</a>
+                    </div>
+                </div>
+            `;
+            const emptyStationHtml = `
+                <div class="col-12">
+                    <div class="p-4 bg-light rounded-4 border border-dashed text-start">
+                        <p class="text-muted mb-3">You are not tracking any stations yet. Monitor specific stations for disruptions and lift closures.</p>
+                        <a href="/tracking.html#stations" class="btn btn-primary btn-sm px-4">Find stations to track</a>
+                    </div>
+                </div>
+            `;
+
+            lineList.innerHTML = data.lines.length ? '' : emptyLineHtml;
+            stationList.innerHTML = data.stations.length ? '' : emptyStationHtml;
+
+            const sortedLines = data.lines.map(line => {
+                const activeStatuses = line.statuses || line.Statuses || [];
+                const maxUrgency = activeStatuses.length ? Math.max(...activeStatuses.map(s => s.severity.urgency)) : 0;
+                // MinUrgency defaults to 2 (Severe) if not set, or we can use the value from the object
+                const isFlagged = maxUrgency >= (line.minUrgency ?? 2) && maxUrgency > 0;
+                return { ...line, activeStatuses, isFlagged, maxUrgency };
+            }).sort((a, b) => {
+                if (a.isFlagged && !b.isFlagged) return -1;
+                if (!a.isFlagged && b.isFlagged) return 1;
+                return (b.maxUrgency - a.maxUrgency) || a.name.localeCompare(b.name);
+            });
+
+            sortedLines.forEach((line, index) => {
+                const activeStatuses = line.activeStatuses;
+                const { display: severityDescription, full: details, hasDetails } = formatSeverity(activeStatuses);
+                const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
+                const maxUrgency = line.maxUrgency || 0;
+                
+                let badgeClass = "bg-success";
+                let statusClass = "status-good";
+                
+                if (maxUrgency >= 2) {
+                    badgeClass = "bg-danger";
+                    statusClass = "status-severe";
+                } else if (maxUrgency === 1) {
+                    badgeClass = "bg-warning text-dark";
+                    statusClass = "status-minor";
+                }
+                
+                const cardHtml = createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged, details, hasDetails);
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = cardHtml;
+                const cardEl = tempDiv.firstElementChild;
+                cardEl.classList.add('fade-in');
+                cardEl.style.animationDelay = `${index * 0.05}s`;
+                lineList.appendChild(cardEl);
+            });
+
+            const sortedStations = data.stations.map(station => {
+                const activeStatuses = station.statuses || station.Statuses || [];
+                const isFlagged = activeStatuses.length > 0 && activeStatuses.some(s => s.statusDescription !== 'No Issues');
+                return { ...station, activeStatuses, isFlagged };
+            }).sort((a, b) => {
+                if (a.isFlagged && !b.isFlagged) return -1;
+                if (!a.isFlagged && b.isFlagged) return 1;
+                return a.commonName.localeCompare(b.commonName);
+            });
+
+            sortedStations.forEach((station, index) => {
+                const activeStatuses = station.activeStatuses;
+                const hasIssues = station.isFlagged;
+                
+                // Manually build details for modal
+                const details = activeStatuses.map(s => ({
+                    description: 'Disruption',
+                    reason: s.statusDescription
+                }));
+                const hasDetails = hasIssues && details.length > 0;
+                
+                const badgeText = hasIssues ? "Disruption" : "No disruptions";
+                const reasons = hasIssues ? activeStatuses.map(s => s.statusDescription) : [];
+                
+                let badgeClass = hasIssues ? "bg-warning text-dark" : "bg-success";
+                let statusClass = hasIssues ? "status-minor" : "status-good";
+
+                const cardHtml = createCardHtml(station.commonName, badgeText, badgeClass, statusClass, [], hasIssues, details, hasDetails);
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = cardHtml;
+                const cardEl = tempDiv.firstElementChild;
+                cardEl.classList.add('fade-in');
+                cardEl.style.animationDelay = `${(sortedLines.length + index) * 0.05}s`;
+                stationList.appendChild(cardEl);
+            });
+            return true;
         } else if (response.status === 401) {
             logout();
             return false;
@@ -953,8 +939,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (resEl && lastUpdateLineTime) resEl.innerHTML = refreshingHtml;
         if (trackedResEl && lastUpdateTrackedTime && isLoggedIn() && isVerified()) trackedResEl.innerHTML = refreshingHtml;
 
-        const p1 = loadTubeStatus(false);
-        const p2 = (isLoggedIn() && document.getElementById('tracked-status')) ? loadTrackedStatus(false) : Promise.resolve(true);
+        const p1 = loadTubeStatus();
+        const p2 = (isLoggedIn() && document.getElementById('tracked-status')) ? loadTrackedStatus() : Promise.resolve(true);
 
         const [r1, r2] = await Promise.all([p1, p2]);
         
@@ -972,12 +958,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (resEl) {
                     resEl.innerHTML = '';
                     updateTimeAgo('api-result', lastUpdateLineTime);
-                    renderTubeLines(r1);
                 }
                 if (trackedResEl) {
                     trackedResEl.innerHTML = '';
                     updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
-                    if (r2 !== true) renderTrackedData(r2); // Only render if we actually got data back (not the dummy promise)
                 }
             } else {
                 // Failure
