@@ -223,13 +223,18 @@ async function loadTubeStatus() {
 
     if (!lastUpdateLineTime) {
         resultElement.innerText = "Fetching latest data...";
-        showSkeleton('tube-list', 11);
+        const cachedCount = parseInt(localStorage.getItem('total-lines-count')) || 11;
+        showSkeleton('tube-list', cachedCount);
     }
     
     try {
         const response = await fetch('/api/status/lines?_=' + new Date().getTime());
         if (response.ok) {
             let lines = await response.json();
+            
+            // Cache count for next load
+            localStorage.setItem('total-lines-count', lines.length);
+
             lastUpdateLineTime = new Date();
             // Clear any error state before updating time
             resultElement.innerHTML = ''; 
@@ -307,14 +312,21 @@ async function loadTrackedStatus() {
     if (verifiedContent) verifiedContent.classList.remove('d-none');
 
     if (!lastUpdateTrackedTime) {
-        showSkeleton('tracked-line-list', 3);
-        showSkeleton('tracked-station-list', 3);
+        const cachedLines = parseInt(localStorage.getItem('tracked-lines-count')) || 3;
+        const cachedStations = parseInt(localStorage.getItem('tracked-stations-count')) || 3;
+        showSkeleton('tracked-line-list', cachedLines);
+        showSkeleton('tracked-station-list', cachedStations);
     }
 
     try {
         const response = await fetch('/api/status/tracked?_=' + new Date().getTime(), { headers: getAuthHeader() });
         if (response.ok) {
             const data = await response.json();
+            
+            // Cache the counts for next time
+            localStorage.setItem('tracked-lines-count', data.lines.length);
+            localStorage.setItem('tracked-stations-count', data.stations.length);
+
             lastUpdateTrackedTime = new Date();
             // Clear any error state before updating time
             resultElement.innerHTML = '';
@@ -621,6 +633,10 @@ async function toggleLine(lineId, currentlyTracked) {
             body: currentlyTracked ? null : JSON.stringify({ lineId, notify: true, minUrgency: 2 })
         });
         if (res.ok) {
+            // Update skeleton cache
+            const currentCount = parseInt(localStorage.getItem('tracked-lines-count')) || 0;
+            localStorage.setItem('tracked-lines-count', Math.max(0, currentCount + (currentlyTracked ? -1 : 1)));
+
             const updatedTracked = await fetch('/api/tracking/lines', { headers: getAuthHeader() });
             trackedLines = await updatedTracked.json();
             renderLines();
@@ -717,6 +733,10 @@ async function toggleStation(stationId, currentlyTracked) {
             body: currentlyTracked ? null : JSON.stringify({ stationId, notify: true, minUrgency: 2 })
         });
         if (res.ok) {
+            // Update skeleton cache
+            const currentCount = parseInt(localStorage.getItem('tracked-stations-count')) || 0;
+            localStorage.setItem('tracked-stations-count', Math.max(0, currentCount + (currentlyTracked ? -1 : 1)));
+
             const updatedTracked = await fetch('/api/tracking/stations', { headers: getAuthHeader() });
             trackedStations = await updatedTracked.json();
             renderStations();
