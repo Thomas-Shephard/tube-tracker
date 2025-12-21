@@ -181,7 +181,14 @@ function markStatusUnknown(containerId) {
         card.classList.add('status-unknown');
         // Remove click interactivity
         card.removeAttribute('onclick');
+        card.removeAttribute('onkeydown');
+        card.removeAttribute('tabindex');
+        card.removeAttribute('role');
         card.style.cursor = 'default';
+        
+        // Remove bell icon
+        const bell = card.querySelector('.bi-bell-fill');
+        if (bell) bell.remove();
         
         const badge = card.querySelector('.badge');
         if (badge) {
