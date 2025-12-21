@@ -52,7 +52,7 @@ body {
 }
 
 .skeleton-card {
-    height: 120px;
+    height: 112px;
     border-radius: 12px;
     animation: skeleton-pulse 1.5s infinite ease-in-out;
 }

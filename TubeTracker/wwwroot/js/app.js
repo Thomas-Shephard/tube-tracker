@@ -300,6 +300,7 @@ async function loadTrackedStatus() {
 
     if (!lastUpdateTrackedTime) {
         showSkeleton('tracked-line-list', 3);
+        showSkeleton('tracked-station-list', 3);
     }
 
     try {
