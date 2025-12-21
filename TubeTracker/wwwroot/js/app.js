@@ -396,7 +396,7 @@ async function loadTrackedStatus() {
                 let badgeClass = hasIssues ? "bg-warning text-dark" : "bg-success";
                 let statusClass = hasIssues ? "status-minor" : "status-good";
 
-                const cardHtml = createCardHtml(station.commonName, badgeText, badgeClass, statusClass, reasons, hasIssues, details, hasDetails);
+                const cardHtml = createCardHtml(station.commonName, badgeText, badgeClass, statusClass, [], hasIssues, details, hasDetails);
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = cardHtml;
                 const cardEl = tempDiv.firstElementChild;
