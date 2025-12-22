@@ -89,25 +89,54 @@
         <section id="guest-features" class="cta-section text-center rounded-4 shadow-sm mb-5 d-none">
             <div class="container">
                 <h2 class="fw-bold mb-5">Why Create an Account?</h2>
-                <div class="row g-5">
-                    <div class="col-md-4">
+                <div class="row g-4">
+                    <div class="col-md-3">
+                        <div class="feature-icon"><i class="bi bi-robot"></i></div>
+                        <h3>AI Helper</h3>
+                        <p>Our AI scans disruptions to instantly find accessibility issues and station closures.</p>
+                    </div>
+                    <div class="col-md-3">
                         <div class="feature-icon"><i class="bi bi-bell-fill"></i></div>
-                        <h3>Email Notifications</h3>
-                        <p>Get instant alerts when your favorite lines or stations experience delays or disruptions.</p>
+                        <h3>Smart Alerts</h3>
+                        <p>Get instant email alerts when your favorite routes experience disruptions.</p>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="feature-icon"><i class="bi bi-pin-angle-fill"></i></div>
-                        <h3>Tracked Stations</h3>
-                        <p>Monitor specific stations for lift closures, platform changes, and local disruptions.</p>
+                        <h3>Track Stations</h3>
+                        <p>Monitor specific stations for lift faults and local platform changes.</p>
                     </div>
-                    <div class="col-md-4">
+                    <div class="col-md-3">
                         <div class="feature-icon"><i class="bi bi-person-check-fill"></i></div>
-                        <h3>Personalized Dashboard</h3>
-                        <p>See only what matters to you with a custom view of your most-used transit routes.</p>
+                        <h3>Dashboard</h3>
+                        <p>A personalized view showing only the lines and stations you care about.</p>
                     </div>
                 </div>
                 <div class="mt-5">
                     <a href="/register.html" class="btn btn-primary btn-lg px-5">Register Now</a>
+                </div>
+            </div>
+        </section>
+
+        <!-- AI Accessibility Helper (Logged In Only) -->
+        <section id="ai-accessibility" class="mt-5 mb-5 d-none">
+            <div class="p-4 p-md-5 mb-4 bg-light rounded-4 border border-info shadow-sm position-relative overflow-hidden">
+                <div class="position-absolute top-0 end-0 p-3 opacity-10">
+                    <i class="bi bi-robot" style="font-size: 8rem;"></i>
+                </div>
+                <div class="row align-items-center">
+                    <div class="col-md-8 position-relative">
+                        <div class="d-flex align-items-center mb-3">
+                            <span class="badge bg-info text-dark mb-2 me-2">AI ENABLED</span>
+                            <h2 class="fw-bold mb-0">Accessibility Helper</h2>
+                        </div>
+                        <p class="fs-5 text-muted">Our AI engine automatically analyzes station disruptions to highlight issues affecting step-free access and station status.</p>
+                        <div id="ai-alerts-container">
+                            <div class="spinner-border spinner-border-sm text-info" role="status">
+                                <span class="visually-hidden">Loading AI analysis...</span>
+                            </div>
+                            <span class="ms-2 text-muted">Analyzing live data...</span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>

@@ -294,10 +294,48 @@ async function loadTubeStatus() {
     }
 }
 
+function updateAiHelper(data) {
+    const container = document.getElementById('ai-alerts-container');
+    if (!container) return;
+
+    const accessibilityIssues = data.stations.filter(s => 
+        (s.statuses || s.Statuses || []).some(status => status.severity.description === 'Accessibility Issue')
+    );
+
+    if (accessibilityIssues.length === 0) {
+        container.innerHTML = `
+            <div class="alert alert-success border-0 mb-0">
+                <i class="bi bi-check-circle-fill me-2"></i>
+                No accessibility issues detected by AI at your tracked stations.
+            </div>
+        `;
+    } else {
+        let html = '<div class="row g-3">';
+        accessibilityIssues.forEach(s => {
+            const statuses = s.statuses || s.Statuses || [];
+            const issue = statuses.find(status => status.severity.description === 'Accessibility Issue');
+            html += `
+                <div class="col-12">
+                    <div class="alert alert-warning border-0 mb-0 d-flex align-items-center shadow-sm">
+                        <i class="bi bi-exclamation-triangle-fill me-3 fs-4 text-warning"></i>
+                        <div>
+                            <strong class="d-block text-dark">${s.commonName}</strong>
+                            <span class="small text-muted">${issue.statusDescription}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    }
+}
+
 async function loadTrackedStatus() {
     if (!isLoggedIn()) return;
     
     const trackedStatusSection = document.getElementById('tracked-status');
+    const aiHelperSection = document.getElementById('ai-accessibility');
     const unverifiedMsg = document.getElementById('tracked-unverified-msg');
     const verifiedContent = document.getElementById('tracked-verified-content');
     const lineList = document.getElementById('tracked-line-list');
@@ -307,6 +345,7 @@ async function loadTrackedStatus() {
 
     if (!isVerified()) {
         if (trackedStatusSection) trackedStatusSection.classList.remove('d-none');
+        if (aiHelperSection) aiHelperSection.classList.add('d-none');
         if (unverifiedMsg) unverifiedMsg.classList.remove('d-none');
         if (verifiedContent) verifiedContent.classList.add('d-none');
         if (resultElement) resultElement.innerText = "Verification required.";
@@ -315,6 +354,7 @@ async function loadTrackedStatus() {
 
     if (unverifiedMsg) unverifiedMsg.classList.add('d-none');
     if (verifiedContent) verifiedContent.classList.remove('d-none');
+    if (aiHelperSection) aiHelperSection.classList.remove('d-none');
 
     if (!lastUpdateTrackedTime) {
         const cachedLines = parseInt(localStorage.getItem('tracked-lines-count')) || 3;
@@ -337,6 +377,8 @@ async function loadTrackedStatus() {
             resultElement.innerHTML = '';
             updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
             
+            updateAiHelper(data);
+
             const emptyLineHtml = `
                 <div class="col-12">
                     <div class="p-4 bg-light rounded-4 border border-dashed text-start">
@@ -905,10 +947,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Handle Dashboard
         const trackedStatus = document.getElementById('tracked-status');
+        const aiHelper = document.getElementById('ai-accessibility');
         if (trackedStatus) {
             trackedStatus.classList.remove('d-none');
             const statusTitle = document.getElementById('status-title');
             if (statusTitle) statusTitle.innerText = "All Line Statuses";
+        }
+        if (aiHelper && isVerified()) {
+            aiHelper.classList.remove('d-none');
         }
     } else {
         const guestHero = document.getElementById('guest-hero');
