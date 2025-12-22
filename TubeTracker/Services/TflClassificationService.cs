@@ -54,16 +54,19 @@ public class TflClassificationService : ITflClassificationService
 
                              Guidelines:
                              1. "Station Closed" is ONLY for when the ENTIRE station is closed to the public.
-                             2. If a lift is broken, use "Lift Fault".
-                             3. If an escalator is broken, use "Escalator Fault".
-                             4. If the station is open but entrance/exit is restricted, use "Station Closed" or "Other" depending on severity, but NEVER if it's just a lift/escalator issue.
-                             5. "Signal Failure" and "Train Fault" are for train services, not station assets.
+                             2. "Information" is for operational advice (e.g., "travel in front coaches", "ticket hall changes") where the station is fully open.
+                             3. If a lift is broken, use "Lift Fault".
+                             4. If an escalator is broken, use "Escalator Fault".
+                             5. If the station is open but entrance/exit is restricted (e.g., "exit only", "partially closed"), use "Other".
+                             6. "Signal Failure" and "Train Fault" are for train services, not station assets.
 
                              Examples:
                              - "Covent Garden: Station closed due to overcrowding." -> "Station Closed"
                              - "Westminster: No step-free access due to lift fault." -> "Lift Fault"
+                             - "Langley: Please travel in the front 7 coaches." -> "Information"
                              - "Victoria: Escalator 4 is out of service." -> "Escalator Fault"
                              - "Baker Street: Severe delays due to signal failure." -> "Signal Failure"
+                             - "Camden Town: Exit only due to overcrowding." -> "Other"
                              
                              Respond with JSON only.
                              """;
