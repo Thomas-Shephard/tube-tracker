@@ -91,15 +91,11 @@ public class TubeStatusBackgroundService(
             if (dbStations.Any())
             {
                 Dictionary<string, int> stationMap = dbStations.ToDictionary(station => station.TflId, station => station.StationId);
-
-                // Group disruptions by station ID to handle multiple disruptions and identify cleared stations
                 Dictionary<int, List<string>> disruptionsByStation = new();
+
                 foreach (TflStationDisruption disruption in stationDisruptions)
                 {
-                    string tflId = !string.IsNullOrEmpty(disruption.StationAtcoCode)
-                        ? disruption.StationAtcoCode
-                        : disruption.AtcoCode;
-
+                    string tflId = !string.IsNullOrEmpty(disruption.StationAtcoCode) ? disruption.StationAtcoCode : disruption.AtcoCode;
                     if (!string.IsNullOrEmpty(tflId) && stationMap.TryGetValue(tflId, out int stationId))
                     {
                         if (!disruptionsByStation.TryGetValue(stationId, out List<string>? descriptions))
@@ -109,11 +105,9 @@ public class TubeStatusBackgroundService(
                         }
                         descriptions.Add(disruption.Description);
                     }
-                    else
-                    {
-                        logger.LogWarning("Station disruption for {TflId} ({CommonName}) not found in database.", tflId, disruption.CommonName);
-                    }
                 }
+
+                List<(int StationId, string Description)> newDisruptionsToClassify = [];
 
                 foreach (Station station in dbStations)
                 {
@@ -128,14 +122,13 @@ public class TubeStatusBackgroundService(
                             }
                             else
                             {
-                                StationClassificationResult classification = await classificationService.ClassifyStationDisruptionAsync(description);
-                                await stationHistoryRepository.InsertAsync(station.StationId, description, classification.CategoryId, classification.IsFuture);
+                                newDisruptionsToClassify.Add((station.StationId, description));
                             }
                         }
                     }
                     else
                     {
-                        // No active disruptions, so record "No Issues"
+                        // No Issues
                         const string description = "No Issues";
                         int? historyId = await stationHistoryRepository.TryGetActiveHistoryIdAsync(station.StationId, description, stationThreshold);
                         if (historyId.HasValue)
@@ -145,6 +138,29 @@ public class TubeStatusBackgroundService(
                         else
                         {
                             await stationHistoryRepository.InsertAsync(station.StationId, description, goodServiceId, false);
+                        }
+                    }
+                }
+
+                // Batch Classification
+                if (newDisruptionsToClassify.Count > 0)
+                {
+                    logger.LogInformation("Classifying {Count} new station disruptions...", newDisruptionsToClassify.Count);
+                    
+                    // Deduplicate strings to avoid redundant LLM calls
+                    List<string> uniqueDescriptions = newDisruptionsToClassify.Select(x => x.Description).Distinct().ToList();
+                    Dictionary<string, StationClassificationResult> classificationCache = new();
+
+                    foreach (string desc in uniqueDescriptions)
+                    {
+                        classificationCache[desc] = await classificationService.ClassifyStationDisruptionAsync(desc);
+                    }
+
+                    foreach ((int stationId, string desc) in newDisruptionsToClassify)
+                    {
+                        if (classificationCache.TryGetValue(desc, out StationClassificationResult? result))
+                        {
+                            await stationHistoryRepository.InsertAsync(stationId, desc, result.CategoryId, result.IsFuture);
                         }
                     }
                 }
