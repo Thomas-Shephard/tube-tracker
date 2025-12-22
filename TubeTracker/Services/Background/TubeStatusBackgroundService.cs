@@ -132,7 +132,7 @@ public class TubeStatusBackgroundService(
                             else
                             {
                                 StationClassificationResult classification = await classificationService.ClassifyStationDisruptionAsync(description);
-                                await stationHistoryRepository.InsertAsync(station.StationId, description, classification.CategoryId);
+                                await stationHistoryRepository.InsertAsync(station.StationId, description, classification.CategoryId, classification.IsFuture);
                             }
                         }
                     }
@@ -147,7 +147,7 @@ public class TubeStatusBackgroundService(
                         }
                         else
                         {
-                            await stationHistoryRepository.InsertAsync(station.StationId, description, goodServiceId);
+                            await stationHistoryRepository.InsertAsync(station.StationId, description, goodServiceId, false);
                         }
                     }
                 }

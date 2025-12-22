@@ -1,0 +1,1 @@
+ALTER TABLE StationStatusHistory ADD COLUMN is_future BOOL DEFAULT FALSE;

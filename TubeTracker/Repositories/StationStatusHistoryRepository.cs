@@ -26,17 +26,18 @@ public class StationStatusHistoryRepository(IDbConnection connection, StatusBack
         await connection.ExecuteAsync(updateQuery, new { Now = DateTime.UtcNow, HistoryId = historyId });
     }
 
-    public async Task InsertAsync(int stationId, string statusDescription, int statusSeverityId)
+    public async Task InsertAsync(int stationId, string statusDescription, int statusSeverityId, bool isFuture)
     {
         const string insertQuery = """
-                                   INSERT INTO StationStatusHistory (station_id, status_description, status_severity_id, first_reported_at, last_reported_at) 
-                                   VALUES (@StationId, @StatusDescription, @StatusSeverityId, @Now, @Now)
+                                   INSERT INTO StationStatusHistory (station_id, status_description, status_severity_id, is_future, first_reported_at, last_reported_at) 
+                                   VALUES (@StationId, @StatusDescription, @StatusSeverityId, @IsFuture, @Now, @Now)
                                    """;
         await connection.ExecuteAsync(insertQuery, new
         {
             StationId = stationId,
             StatusDescription = statusDescription,
             StatusSeverityId = statusSeverityId,
+            IsFuture = isFuture,
             Now = DateTime.UtcNow
         });
     }
@@ -48,6 +49,7 @@ public class StationStatusHistoryRepository(IDbConnection connection, StatusBack
                                     ssh.station_id AS StationId, 
                                     ssh.status_description AS StatusDescription, 
                                     ssh.status_severity_id AS StatusSeverityId,
+                                    ssh.is_future AS IsFuture,
                                     ssh.first_reported_at AS FirstReportedAt, 
                                     ssh.last_reported_at AS LastReportedAt,
                                     sss.severity_id AS SeverityId,

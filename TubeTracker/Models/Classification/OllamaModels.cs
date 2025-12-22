@@ -37,6 +37,9 @@ public class OllamaClassificationResult
     [JsonPropertyName("category")]
     public string Category { get; init; } = "Other";
 
+    [JsonPropertyName("is_future")]
+    public bool IsFuture { get; init; }
+
     [JsonPropertyName("priority")]
     public int Priority { get; init; }
 
