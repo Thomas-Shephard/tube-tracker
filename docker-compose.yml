@@ -37,7 +37,6 @@ services:
     depends_on:
       maria-db:
         condition: service_healthy
-      ollama:
     env_file: .env
   ollama:
     image: ollama/ollama:latest
