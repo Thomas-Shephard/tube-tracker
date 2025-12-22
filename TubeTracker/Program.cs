@@ -88,8 +88,8 @@ public class Program
         builder.Services.AddHttpClient<ITflClassificationService, TflClassificationService>()
             .AddStandardResilienceHandler(options =>
             {
-                options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(60);
-                options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(45);
+                options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(5);
+                options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(2);
             });
         
         builder.Services.AddSingleton<ITokenService, TokenService>();
