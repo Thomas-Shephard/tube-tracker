@@ -461,8 +461,24 @@ async function loadTrackedStatus() {
                 const badgeText = hasIssues ? "Disruption" : "No disruptions";
                 const reasons = hasIssues ? activeStatuses.map(s => s.statusDescription) : [];
                 
-                let badgeClass = hasIssues ? "bg-warning text-dark" : "bg-success";
-                let statusClass = hasIssues ? "status-minor" : "status-good";
+                let badgeClass = "bg-success";
+                let statusClass = "status-good";
+
+                if (hasIssues) {
+                    // Check max urgency among issues
+                    const maxUrgency = Math.max(...activeStatuses.map(s => s.severity.urgency));
+                    
+                    if (maxUrgency >= 3) {
+                        badgeClass = "bg-danger";
+                        statusClass = "status-severe"; // Red
+                    } else if (maxUrgency === 2) {
+                        badgeClass = "bg-warning text-dark";
+                        statusClass = "status-minor"; // Orange/Yellow
+                    } else {
+                        badgeClass = "bg-info text-dark";
+                        statusClass = "status-info"; // Blue (Accessibility/Other)
+                    }
+                }
 
                 const cardHtml = createCardHtml(station.commonName, badgeText, badgeClass, statusClass, [], hasIssues, details, hasDetails);
                 const tempDiv = document.createElement('div');
@@ -726,11 +742,17 @@ function renderStations() {
         if (tracked) {
             settingsHtml = `
                 <div class="settings-panel mt-3">
-                    <div class="form-check form-switch mb-0 d-flex justify-content-between align-items-center">
-                        <div>
+                    <div class="mb-3">
+                        <div class="form-check form-switch mb-1">
                             <input class="form-check-input" type="checkbox" id="notify-station-${station.stationId}" ${tracked.notify ? 'checked' : ''} onchange="updateStationSettings(${station.stationId})">
                             <label class="form-check-label" for="notify-station-${station.stationId}">Email Notifications</label>
                         </div>
+                    </div>
+                    <label class="form-label x-small text-muted mb-1">Minimum Alert Urgency</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <select class="form-select form-select-sm" id="urgency-station-${station.stationId}" onchange="updateStationSettings(${station.stationId})">
+                            ${urgencyLevels.map(u => `<option value="${u.val}" ${tracked.minUrgency === u.val ? 'selected' : ''}>${u.label}</option>`).join('')}
+                        </select>
                         <span id="saved-station-${station.stationId}" class="text-success small fw-bold opacity-0" style="transition: opacity 0.3s; white-space: nowrap;"><i class="bi bi-check-circle-fill me-1"></i>Saved</span>
                     </div>
                 </div>
@@ -758,12 +780,13 @@ function renderStations() {
 
 async function updateStationSettings(stationId) {
     const notify = document.getElementById(`notify-station-${stationId}`).checked;
+    const minUrgency = parseInt(document.getElementById(`urgency-station-${stationId}`).value);
     
     try {
         const res = await fetch('/api/tracking/stations', {
             method: 'PUT',
             headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stationId, notify })
+            body: JSON.stringify({ stationId, notify, minUrgency })
         });
         if (res.ok) showSavedFeedback('station', stationId);
     } catch (err) { console.error(err); }
