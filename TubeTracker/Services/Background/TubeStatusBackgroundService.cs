@@ -16,6 +16,9 @@ public class TubeStatusBackgroundService(
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Give OllamaModelInitializer time to pull the model if needed
+        await Task.Delay(TimeSpan.FromMinutes(1), stoppingToken);
+
         using PeriodicTimer timer = new(_period, timeProvider);
 
         do
