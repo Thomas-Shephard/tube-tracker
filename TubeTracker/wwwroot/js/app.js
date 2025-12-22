@@ -227,7 +227,7 @@ async function loadTubeStatus() {
     if (!listContainer) return;
 
     if (!lastUpdateLineTime) {
-        resultElement.innerText = "Fetching latest data...";
+        resultElement.innerHTML = `<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span>Refreshing...</span>`;
         const cachedCount = parseInt(localStorage.getItem('total-lines-count')) || 11;
         showSkeleton('tube-list', cachedCount);
     }
@@ -934,8 +934,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const trackedResEl = document.getElementById('tracked-api-result');
         
         // Always show refreshing status when attempting an update
-        if (resEl && lastUpdateLineTime) resEl.innerHTML = refreshingHtml;
-        if (trackedResEl && lastUpdateTrackedTime && isLoggedIn() && isVerified()) trackedResEl.innerHTML = refreshingHtml;
+        if (resEl) resEl.innerHTML = refreshingHtml;
+        if (trackedResEl && isLoggedIn() && isVerified()) trackedResEl.innerHTML = refreshingHtml;
 
         const p1 = loadTubeStatus();
         const p2 = (isLoggedIn() && document.getElementById('tracked-status')) ? loadTrackedStatus() : Promise.resolve(true);
