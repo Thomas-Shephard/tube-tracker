@@ -15,8 +15,6 @@ public class StationStatusHistoryRepository(IDbConnection connection, StatusBack
                                         status_description AS StatusDescription,
                                         status_severity_id AS StatusSeverityId,
                                         is_future AS IsFuture,
-                                        valid_from AS ValidFrom,
-                                        valid_until AS ValidUntil,
                                         first_reported_at AS FirstReportedAt,
                                         last_reported_at AS LastReportedAt
                                  FROM StationStatusHistory 
@@ -41,11 +39,11 @@ public class StationStatusHistoryRepository(IDbConnection connection, StatusBack
         await connection.ExecuteAsync(updateQuery, new { IsFuture = isFuture, HistoryId = historyId });
     }
 
-    public async Task InsertAsync(int stationId, string statusDescription, int statusSeverityId, bool isFuture, DateTime? validFrom, DateTime? validUntil)
+    public async Task InsertAsync(int stationId, string statusDescription, int statusSeverityId, bool isFuture)
     {
         const string insertQuery = """
-                                   INSERT INTO StationStatusHistory (station_id, status_description, status_severity_id, is_future, valid_from, valid_until, first_reported_at, last_reported_at) 
-                                   VALUES (@StationId, @StatusDescription, @StatusSeverityId, @IsFuture, @ValidFrom, @ValidUntil, @Now, @Now)
+                                   INSERT INTO StationStatusHistory (station_id, status_description, status_severity_id, is_future, first_reported_at, last_reported_at) 
+                                   VALUES (@StationId, @StatusDescription, @StatusSeverityId, @IsFuture, @Now, @Now)
                                    """;
         await connection.ExecuteAsync(insertQuery, new
         {
@@ -53,8 +51,6 @@ public class StationStatusHistoryRepository(IDbConnection connection, StatusBack
             StatusDescription = statusDescription,
             StatusSeverityId = statusSeverityId,
             IsFuture = isFuture,
-            ValidFrom = validFrom,
-            ValidUntil = validUntil,
             Now = DateTime.UtcNow
         });
     }
@@ -67,8 +63,6 @@ public class StationStatusHistoryRepository(IDbConnection connection, StatusBack
                                     ssh.status_description AS StatusDescription, 
                                     ssh.status_severity_id AS StatusSeverityId,
                                     ssh.is_future AS IsFuture,
-                                    ssh.valid_from AS ValidFrom,
-                                    ssh.valid_until AS ValidUntil,
                                     ssh.first_reported_at AS FirstReportedAt, 
                                     ssh.last_reported_at AS LastReportedAt,
                                     sss.severity_id AS SeverityId,
