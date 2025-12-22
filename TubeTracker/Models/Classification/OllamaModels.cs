@@ -40,6 +40,12 @@ public class OllamaClassificationResult
     [JsonPropertyName("is_future")]
     public bool IsFuture { get; init; }
 
+    [JsonPropertyName("valid_from")]
+    public DateTime? ValidFrom { get; init; }
+
+    [JsonPropertyName("valid_until")]
+    public DateTime? ValidUntil { get; init; }
+
     [JsonPropertyName("priority")]
     public int Priority { get; init; }
 

@@ -7,17 +7,26 @@ namespace TubeTracker.API.Repositories;
 
 public class StationStatusHistoryRepository(IDbConnection connection, StatusBackgroundSettings settings) : IStationStatusHistoryRepository
 {
-    public async Task<int?> TryGetActiveHistoryIdAsync(int stationId, string statusDescription, DateTime threshold)
+    public async Task<StationStatusHistory?> GetActiveHistoryAsync(int stationId, string statusDescription, DateTime threshold)
     {
         const string findQuery = """
-                                 SELECT history_id FROM StationStatusHistory 
+                                 SELECT history_id AS HistoryId,
+                                        station_id AS StationId,
+                                        status_description AS StatusDescription,
+                                        status_severity_id AS StatusSeverityId,
+                                        is_future AS IsFuture,
+                                        valid_from AS ValidFrom,
+                                        valid_until AS ValidUntil,
+                                        first_reported_at AS FirstReportedAt,
+                                        last_reported_at AS LastReportedAt
+                                 FROM StationStatusHistory 
                                  WHERE station_id = @StationId 
                                    AND status_description = @StatusDescription 
                                    AND last_reported_at >= @Threshold
                                  ORDER BY last_reported_at DESC 
                                  LIMIT 1
                                  """;
-        return await connection.QueryFirstOrDefaultAsync<int?>(findQuery, new { StationId = stationId, StatusDescription = statusDescription, Threshold = threshold });
+        return await connection.QueryFirstOrDefaultAsync<StationStatusHistory?>(findQuery, new { StationId = stationId, StatusDescription = statusDescription, Threshold = threshold });
     }
 
     public async Task UpdateLastReportedAsync(int historyId)
@@ -26,11 +35,17 @@ public class StationStatusHistoryRepository(IDbConnection connection, StatusBack
         await connection.ExecuteAsync(updateQuery, new { Now = DateTime.UtcNow, HistoryId = historyId });
     }
 
-    public async Task InsertAsync(int stationId, string statusDescription, int statusSeverityId, bool isFuture)
+    public async Task UpdateIsFutureAsync(int historyId, bool isFuture)
+    {
+        const string updateQuery = "UPDATE StationStatusHistory SET is_future = @IsFuture WHERE history_id = @HistoryId";
+        await connection.ExecuteAsync(updateQuery, new { IsFuture = isFuture, HistoryId = historyId });
+    }
+
+    public async Task InsertAsync(int stationId, string statusDescription, int statusSeverityId, bool isFuture, DateTime? validFrom, DateTime? validUntil)
     {
         const string insertQuery = """
-                                   INSERT INTO StationStatusHistory (station_id, status_description, status_severity_id, is_future, first_reported_at, last_reported_at) 
-                                   VALUES (@StationId, @StatusDescription, @StatusSeverityId, @IsFuture, @Now, @Now)
+                                   INSERT INTO StationStatusHistory (station_id, status_description, status_severity_id, is_future, valid_from, valid_until, first_reported_at, last_reported_at) 
+                                   VALUES (@StationId, @StatusDescription, @StatusSeverityId, @IsFuture, @ValidFrom, @ValidUntil, @Now, @Now)
                                    """;
         await connection.ExecuteAsync(insertQuery, new
         {
@@ -38,6 +53,8 @@ public class StationStatusHistoryRepository(IDbConnection connection, StatusBack
             StatusDescription = statusDescription,
             StatusSeverityId = statusSeverityId,
             IsFuture = isFuture,
+            ValidFrom = validFrom,
+            ValidUntil = validUntil,
             Now = DateTime.UtcNow
         });
     }
@@ -50,6 +67,8 @@ public class StationStatusHistoryRepository(IDbConnection connection, StatusBack
                                     ssh.status_description AS StatusDescription, 
                                     ssh.status_severity_id AS StatusSeverityId,
                                     ssh.is_future AS IsFuture,
+                                    ssh.valid_from AS ValidFrom,
+                                    ssh.valid_until AS ValidUntil,
                                     ssh.first_reported_at AS FirstReportedAt, 
                                     ssh.last_reported_at AS LastReportedAt,
                                     sss.severity_id AS SeverityId,

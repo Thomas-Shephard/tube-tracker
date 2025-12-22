@@ -8,6 +8,8 @@ public class StationStatusHistory
     public int StatusSeverityId { get; init; }
     public StationStatusSeverity? Severity { get; set; }
     public bool IsFuture { get; init; }
+    public DateTime? ValidFrom { get; init; }
+    public DateTime? ValidUntil { get; init; }
     public DateTime FirstReportedAt { get; init; }
     public DateTime LastReportedAt { get; init; }
 }

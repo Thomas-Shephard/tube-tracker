@@ -62,13 +62,18 @@ public class TflClassificationService : ITflClassificationService
 
                              Rules:
                              - Set "is_future" to true IF the event is planned for later dates/times relative to Current Date/Time.
+                             - **RECURRING EVENTS (e.g., "each evening", "Mon-Fri 23:00 to 05:00"):** 
+                               - If Current Time is INSIDE an active window -> "is_future": false, "valid_until": <end of THIS specific window>.
+                               - If Current Time is OUTSIDE an active window (e.g., it's morning, event starts tonight) -> "is_future": true, "valid_from": <start of NEXT specific window>.
+                             - If "is_future" is true, extract the specific start date/time as "valid_from" (ISO 8601 format). If ambiguous or not specified, leave null.
                              - If happening NOW, "is_future" is false.
+                             - If happening NOW, try to extract when this specific active period ENDS as "valid_until" (ISO 8601). E.g., if "23:10 each evening", and it's 23:15, valid_until is when service resumes (usually 04:30 next day) or when the text says it ends.
                              - "Station Closed" is for full closures only.
                              - If step-free access is unavailable (ANY REASON: staff, lift, etc) -> "No Step Free Access".
                              - "Partially Closed" for entrance/exit issues.
                              - "Information" for advice.
                              
-                             Respond with JSON: { "category": "string", "is_future": boolean }
+                             Respond with JSON: { "category": "string", "is_future": boolean, "valid_from": "string (ISO 8601) or null", "valid_until": "string (ISO 8601) or null" }
                              """;
 
             OllamaRequest request = new()
@@ -96,7 +101,9 @@ public class TflClassificationService : ITflClassificationService
             return new StationClassificationResult 
             { 
                 CategoryId = matchedId ?? otherSeverity.SeverityId, 
-                IsFuture = classification.IsFuture 
+                IsFuture = classification.IsFuture,
+                ValidFrom = classification.ValidFrom,
+                ValidUntil = classification.ValidUntil
             };
         }
         catch (Exception ex)

@@ -115,10 +115,35 @@ public class TubeStatusBackgroundService(
                     {
                         foreach (string description in descriptions)
                         {
-                            int? historyId = await stationHistoryRepository.TryGetActiveHistoryIdAsync(station.StationId, description, stationThreshold);
-                            if (historyId.HasValue)
+                            StationStatusHistory? existing = await stationHistoryRepository.GetActiveHistoryAsync(station.StationId, description, stationThreshold);
+                            if (existing is not null)
                             {
-                                await stationHistoryRepository.UpdateLastReportedAsync(historyId.Value);
+                                bool shouldReclassify = false;
+                                DateTime now = DateTime.UtcNow;
+
+                                // Case 1: Was future, but start time passed -> Re-check to see if active
+                                if (existing.IsFuture && existing.ValidFrom.HasValue && existing.ValidFrom.Value <= now)
+                                {
+                                    shouldReclassify = true;
+                                }
+                                // Case 2: Was active, but end time passed -> Re-check to see if future (next occurrence)
+                                else if (!existing.IsFuture && existing.ValidUntil.HasValue && existing.ValidUntil.Value <= now)
+                                {
+                                    shouldReclassify = true;
+                                }
+
+                                if (shouldReclassify)
+                                {
+                                    newDisruptionsToClassify.Add((station.StationId, description));
+                                    // Note: We don't update last_reported here because we want the new classification to take over as a new entry (or update).
+                                    // Actually, if we classify and insert, it will create a NEW history entry. 
+                                    // The old one will eventually fall off due to threshold.
+                                    // Ideally, we might want to "expire" the old one, but letting it age out is fine.
+                                }
+                                else
+                                {
+                                    await stationHistoryRepository.UpdateLastReportedAsync(existing.HistoryId);
+                                }
                             }
                             else
                             {
@@ -130,14 +155,14 @@ public class TubeStatusBackgroundService(
                     {
                         // No Issues
                         const string description = "No Issues";
-                        int? historyId = await stationHistoryRepository.TryGetActiveHistoryIdAsync(station.StationId, description, stationThreshold);
-                        if (historyId.HasValue)
+                        StationStatusHistory? existing = await stationHistoryRepository.GetActiveHistoryAsync(station.StationId, description, stationThreshold);
+                        if (existing is not null)
                         {
-                            await stationHistoryRepository.UpdateLastReportedAsync(historyId.Value);
+                            await stationHistoryRepository.UpdateLastReportedAsync(existing.HistoryId);
                         }
                         else
                         {
-                            await stationHistoryRepository.InsertAsync(station.StationId, description, goodServiceId, false);
+                            await stationHistoryRepository.InsertAsync(station.StationId, description, goodServiceId, false, null, null);
                         }
                     }
                 }
@@ -145,7 +170,7 @@ public class TubeStatusBackgroundService(
                 // Batch Classification
                 if (newDisruptionsToClassify.Count > 0)
                 {
-                    logger.LogInformation("Classifying {Count} new station disruptions...", newDisruptionsToClassify.Count);
+                    logger.LogInformation("Classifying {Count} new or re-evaluating station disruptions...", newDisruptionsToClassify.Count);
                     
                     // Deduplicate strings to avoid redundant LLM calls
                     List<string> uniqueDescriptions = newDisruptionsToClassify.Select(x => x.Description).Distinct().ToList();
@@ -160,7 +185,7 @@ public class TubeStatusBackgroundService(
                     {
                         if (classificationCache.TryGetValue(desc, out StationClassificationResult? result))
                         {
-                            await stationHistoryRepository.InsertAsync(stationId, desc, result.CategoryId, result.IsFuture);
+                            await stationHistoryRepository.InsertAsync(stationId, desc, result.CategoryId, result.IsFuture, result.ValidFrom, result.ValidUntil);
                         }
                     }
                 }
