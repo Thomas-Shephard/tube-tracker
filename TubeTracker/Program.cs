@@ -90,6 +90,7 @@ public class Program
             {
                 options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(5);
                 options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(2);
+                options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(5);
             });
         
         builder.Services.AddSingleton<ITokenService, TokenService>();
