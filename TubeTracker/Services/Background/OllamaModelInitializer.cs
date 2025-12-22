@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using TubeTracker.API.Models.Classification;
 using TubeTracker.API.Settings;
 
@@ -11,16 +10,44 @@ public class OllamaModelInitializer(
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Wait for Ollama to be ready
-        await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+        using HttpClient client = httpClientFactory.CreateClient();
+        client.BaseAddress = new Uri(settings.BaseUrl);
+        client.Timeout = TimeSpan.FromMinutes(30);
+
+        logger.LogInformation("Waiting for Ollama to be ready at {Url}...", settings.BaseUrl);
+
+        bool isReady = false;
+        int retries = 0;
+        // Poll until Ollama is responsive (max 60s)
+        while (!stoppingToken.IsCancellationRequested && retries < 60)
+        {
+            try
+            {
+                HttpResponseMessage response = await client.GetAsync("/", stoppingToken);
+                if (response.IsSuccessStatusCode)
+                {
+                    isReady = true;
+                    break;
+                }
+            }
+            catch
+            {
+                // Ignore connection errors while waiting
+            }
+            
+            await Task.Delay(1000, stoppingToken);
+            retries++;
+        }
+
+        if (!isReady)
+        {
+            logger.LogError("Ollama failed to start within timeout. Model initialization aborted.");
+            return;
+        }
 
         try
         {
-            using HttpClient client = httpClientFactory.CreateClient();
-            client.BaseAddress = new Uri(settings.BaseUrl);
-            client.Timeout = TimeSpan.FromMinutes(30);
-
-            logger.LogInformation("Checking if Ollama model '{ModelName}' is available...", settings.ModelName);
+            logger.LogInformation("Ollama is ready. Checking model '{ModelName}'...", settings.ModelName);
 
             bool modelExists = false;
             try
@@ -35,7 +62,7 @@ public class OllamaModelInitializer(
             }
             catch (Exception ex)
             {
-                logger.LogWarning("Failed to check existing models: {Message}. Attempting pull anyway.", ex.Message);
+                logger.LogWarning("Failed to list models: {Message}. Attempting pull anyway.", ex.Message);
             }
 
             if (modelExists)
