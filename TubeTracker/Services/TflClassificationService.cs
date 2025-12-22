@@ -41,7 +41,6 @@ public class TflClassificationService : ITflClassificationService
             string[] categories = _cachedSeverities.Select(c => c.Description).ToArray();
 
             // Simplified Prompt - Text Only, No JSON
-            // This is often more reliable for 4B models than strict JSON schemas
             string prompt = $"""
                              Classify this London Underground disruption.
                              Input: "{description}"
@@ -50,12 +49,12 @@ public class TflClassificationService : ITflClassificationService
                              {string.Join("\n", categories.Select(c => $"- {c}"))}
 
                              Rules:
-                             - If the station is FULLY closed -> \"Station Closed\"
-                             - If a lift is broken -> \"Lift Fault\"
-                             - If an escalator is broken -> \"Escalator Fault\"
-                             - If advising on travel (e.g. "front coaches", "ticket hall") -> "Information"
-                             - If generic restriction (e.g. "exit only", "partially closed") -> "Other"
-                             - "Signal Failure" and "Train Fault" are for train services, not station assets.
+                             - "Station Closed" is ONLY for total station closure.
+                             - If only an ENTRANCE or EXIT is closed -> "Partially Closed"
+                             - If step-free access is unavailable -> "No Step Free Access"
+                             - If advising on travel (e.g. "front coaches") -> "Information"
+                             - If a lift is broken -> "Lift Fault"
+                             - If an escalator is broken -> "Escalator Fault"
                              
                              Reply ONLY with the exact Category Name. No other text.
                              """;
@@ -76,19 +75,15 @@ public class TflClassificationService : ITflClassificationService
             OllamaResponse? result = await response.Content.ReadFromJsonAsync<OllamaResponse>();
             string? rawContent = result?.Message?.Content?.Trim();
 
-            // Log raw response to help debug "Station Closed" bias
             _logger.LogInformation("Ollama Classification: '{Input}' -> '{Output}'", description, rawContent);
 
             if (string.IsNullOrEmpty(rawContent)) return new StationClassificationResult { CategoryId = otherSeverity.SeverityId };
 
-            // Clean up response (remove dots, quotes)
             string cleanContent = rawContent.Replace(".", "").Replace("\"", "").Trim();
 
-            // Fuzzy match the category
             StationStatusSeverity? matchedSeverity = _cachedSeverities
                 .FirstOrDefault(c => cleanContent.Equals(c.Description, StringComparison.OrdinalIgnoreCase));
             
-            // Try Contains if exact match failed (e.g. "Category: Lift Fault")
             if (matchedSeverity is null)
             {
                 matchedSeverity = _cachedSeverities
@@ -102,7 +97,6 @@ public class TflClassificationService : ITflClassificationService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error classifying disruption: {Description}", description);
-            // Fallback
             int fallbackId = _cachedSeverities?.FirstOrDefault(s => s.Description.Equals("Other", StringComparison.OrdinalIgnoreCase))?.SeverityId ?? 12;
             return new StationClassificationResult { CategoryId = fallbackId };
         }
