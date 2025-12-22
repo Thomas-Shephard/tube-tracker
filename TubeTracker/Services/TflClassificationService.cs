@@ -43,9 +43,9 @@ public class TflClassificationService : ITflClassificationService
             string[] categories = _cachedSeverities.Select(c => c.Description).ToArray();
             
             // Debug check for critical category
-            if (!categories.Contains("No Step Free Access", StringComparer.OrdinalIgnoreCase))
+            if (!categories.Contains("Accessibility Issue", StringComparer.OrdinalIgnoreCase))
             {
-                _logger.LogWarning("Category 'No Step Free Access' is MISSING from database. Model cannot select it.");
+                _logger.LogWarning("Category 'Accessibility Issue' is MISSING from database. Model cannot select it.");
             }
 
             DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
@@ -63,10 +63,12 @@ public class TflClassificationService : ITflClassificationService
                              Rules:
                              - Set "is_future" to true IF the event is planned for later dates/times relative to Current Date/Time.
                              - If happening NOW, "is_future" is false.
-                             - "Station Closed" is for full closures only.
-                             - If step-free access is unavailable (ANY REASON: staff, lift, etc) -> "No Step Free Access".
-                             - "Partially Closed" for entrance/exit issues.
-                             - "Information" for advice.
+                             - "Closed" is for full station closures (e.g., "Station Closed").
+                             - "Partially Closed" for entrance/exit closures or partial restrictions.
+                             - "Accessibility Issue" for lift faults, step-free access unavailable.
+                             - "Information" for general advice or minor notes.
+                             - "No Disruptions" if the message explicitly says Good Service or no issues (rarely used for disruptions).
+                             - "Other" for anything else (delays, severe delays, etc.).
                              
                              Respond with JSON: { "category": "string", "is_future": boolean }
                              """;

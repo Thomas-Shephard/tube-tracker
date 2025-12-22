@@ -67,8 +67,7 @@ public class StationStatusHistoryRepository(IDbConnection connection, StatusBack
                                     ssh.last_reported_at AS LastReportedAt,
                                     sss.severity_id AS SeverityId,
                                     sss.description AS Description,
-                                    sss.urgency AS Urgency,
-                                    sss.is_accessibility AS IsAccessibility
+                                    sss.urgency AS Urgency
                              FROM StationStatusHistory ssh
                              JOIN StationStatusSeverity sss ON ssh.status_severity_id = sss.severity_id
                              WHERE ssh.station_id = @StationId 

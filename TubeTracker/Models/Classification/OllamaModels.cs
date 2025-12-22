@@ -42,9 +42,6 @@ public class OllamaClassificationResult
 
     [JsonPropertyName("priority")]
     public int Priority { get; init; }
-
-    [JsonPropertyName("isAccessibility")]
-    public bool IsAccessibility { get; init; }
 }
 
 public class OllamaModelListResponse

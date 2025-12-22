@@ -43,9 +43,9 @@ public class TubeStatusBackgroundService(
             IEnumerable<StationStatusSeverity> severities = await severityRepository.GetAllAsync();
             Dictionary<string, int> severityMap = severities.ToDictionary(s => s.Description, s => s.SeverityId, StringComparer.OrdinalIgnoreCase);
 
-            if (!severityMap.TryGetValue("Good Service", out int goodServiceId))
+            if (!severityMap.TryGetValue("No Disruptions", out int goodServiceId))
             {
-                throw new InvalidOperationException("Critical configuration missing: 'Good Service' severity category not found in database.");
+                throw new InvalidOperationException("Critical configuration missing: 'No Disruptions' severity category not found in database.");
             }
 
             List<TflLine> tflLines = await tflService.GetLineStatusesAsync();
@@ -129,7 +129,7 @@ public class TubeStatusBackgroundService(
                     else
                     {
                         // No Issues
-                        const string description = "No Issues";
+                        const string description = "No Disruptions";
                         StationStatusHistory? existing = await stationHistoryRepository.GetActiveHistoryAsync(station.StationId, description, stationThreshold);
                         if (existing is not null)
                         {
