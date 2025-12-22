@@ -5,6 +5,8 @@ public class StationStatusHistory
     public int HistoryId { get; init; }
     public int StationId { get; init; }
     public required string StatusDescription { get; init; }
+    public int StatusSeverityId { get; init; }
+    public StationStatusSeverity? Severity { get; set; }
     public DateTime FirstReportedAt { get; init; }
     public DateTime LastReportedAt { get; init; }
 }

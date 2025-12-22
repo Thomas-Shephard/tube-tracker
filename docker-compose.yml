@@ -38,6 +38,11 @@ services:
       maria-db:
         condition: service_healthy
     env_file: .env
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-data:/root/.ollama
 
 volumes:
   maria-db-data:
+  ollama-data:

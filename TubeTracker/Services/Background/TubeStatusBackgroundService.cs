@@ -1,5 +1,6 @@
 using TubeTracker.API.Models.Entities;
 using TubeTracker.API.Models.Tfl;
+using TubeTracker.API.Models.Classification;
 using TubeTracker.API.Repositories;
 using TubeTracker.API.Settings;
 
@@ -35,6 +36,17 @@ public class TubeStatusBackgroundService(
             ILineStatusHistoryRepository lineHistoryRepository = scope.ServiceProvider.GetRequiredService<ILineStatusHistoryRepository>();
             IStationRepository stationRepository = scope.ServiceProvider.GetRequiredService<IStationRepository>();
             IStationStatusHistoryRepository stationHistoryRepository = scope.ServiceProvider.GetRequiredService<IStationStatusHistoryRepository>();
+            ITflClassificationService classificationService = scope.ServiceProvider.GetRequiredService<ITflClassificationService>();
+            IStationStatusSeverityRepository severityRepository = scope.ServiceProvider.GetRequiredService<IStationStatusSeverityRepository>();
+
+            // Pre-fetch severity IDs
+            IEnumerable<StationStatusSeverity> severities = await severityRepository.GetAllAsync();
+            Dictionary<string, int> severityMap = severities.ToDictionary(s => s.Description, s => s.SeverityId, StringComparer.OrdinalIgnoreCase);
+
+            if (!severityMap.TryGetValue("Good Service", out int goodServiceId))
+            {
+                throw new InvalidOperationException("Critical configuration missing: 'Good Service' severity category not found in database.");
+            }
 
             List<TflLine> tflLines = await tflService.GetLineStatusesAsync();
             if (tflLines.Count == 0)
@@ -109,13 +121,31 @@ public class TubeStatusBackgroundService(
                     {
                         foreach (string description in descriptions)
                         {
-                            await stationHistoryRepository.UpsertAsync(station.StationId, description, stationThreshold);
+                            int? historyId = await stationHistoryRepository.TryGetActiveHistoryIdAsync(station.StationId, description, stationThreshold);
+                            if (historyId.HasValue)
+                            {
+                                await stationHistoryRepository.UpdateLastReportedAsync(historyId.Value);
+                            }
+                            else
+                            {
+                                StationClassificationResult classification = await classificationService.ClassifyStationDisruptionAsync(description);
+                                await stationHistoryRepository.InsertAsync(station.StationId, description, classification.CategoryId);
+                            }
                         }
                     }
                     else
                     {
                         // No active disruptions, so record "No Issues"
-                        await stationHistoryRepository.UpsertAsync(station.StationId, "No Issues", stationThreshold);
+                        const string description = "No Issues";
+                        int? historyId = await stationHistoryRepository.TryGetActiveHistoryIdAsync(station.StationId, description, stationThreshold);
+                        if (historyId.HasValue)
+                        {
+                            await stationHistoryRepository.UpdateLastReportedAsync(historyId.Value);
+                        }
+                        else
+                        {
+                            await stationHistoryRepository.InsertAsync(station.StationId, description, goodServiceId);
+                        }
                     }
                 }
             }

@@ -38,6 +38,7 @@ public class Program
         TokenDenySettings tokenDenySettings = builder.Services.AddAndConfigure<TokenDenySettings>(builder.Configuration, "TokenDenySettings");
         builder.Services.AddAndConfigure<StatusBackgroundSettings>(builder.Configuration, "StatusBackgroundSettings");
         SecurityLockoutSettings lockoutSettings = builder.Services.AddAndConfigure<SecurityLockoutSettings>(builder.Configuration, "SecurityLockoutSettings");
+        builder.Services.AddAndConfigure<OllamaSettings>(builder.Configuration, "OllamaSettings");
 
         // Configure Forwarded Headers for Reverse Proxy (Nginx/Docker)
         builder.Services.Configure<ForwardedHeadersOptions>(options =>
@@ -78,9 +79,13 @@ public class Program
         builder.Services.AddScoped<IStationRepository, StationRepository>();
         builder.Services.AddScoped<ILineStatusHistoryRepository, LineStatusHistoryRepository>();
         builder.Services.AddScoped<IStationStatusHistoryRepository, StationStatusHistoryRepository>();
+        builder.Services.AddScoped<IStationStatusSeverityRepository, StationStatusSeverityRepository>();
 
         // Register Services
         builder.Services.AddHttpClient<ITflService, TflService>()
+            .AddStandardResilienceHandler();
+
+        builder.Services.AddHttpClient<ITflClassificationService, TflClassificationService>()
             .AddStandardResilienceHandler();
         
         builder.Services.AddSingleton<ITokenService, TokenService>();
