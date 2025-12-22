@@ -122,12 +122,12 @@ public class TubeStatusBackgroundService(
                                 DateTime now = DateTime.UtcNow;
 
                                 // Case 1: Was future, but start time passed -> Re-check to see if active
-                                if (existing.IsFuture && existing.ValidFrom.HasValue && existing.ValidFrom.Value <= now)
+                                if (existing is { IsFuture: true, ValidFrom: not null } && existing.ValidFrom.Value <= now)
                                 {
                                     shouldReclassify = true;
                                 }
                                 // Case 2: Was active, but end time passed -> Re-check to see if future (next occurrence)
-                                else if (!existing.IsFuture && existing.ValidUntil.HasValue && existing.ValidUntil.Value <= now)
+                                else if (existing is { IsFuture: false, ValidUntil: not null } && existing.ValidUntil.Value <= now)
                                 {
                                     shouldReclassify = true;
                                 }
@@ -167,23 +167,24 @@ public class TubeStatusBackgroundService(
                     }
                 }
 
-                // Batch Classification
                 if (newDisruptionsToClassify.Count > 0)
                 {
                     logger.LogInformation("Classifying {Count} new or re-evaluating station disruptions...", newDisruptionsToClassify.Count);
                     
                     // Deduplicate strings to avoid redundant LLM calls
                     List<string> uniqueDescriptions = newDisruptionsToClassify.Select(x => x.Description).Distinct().ToList();
-                    Dictionary<string, StationClassificationResult> classificationCache = new();
+                    Dictionary<string, List<int>> pendingByDescription = newDisruptionsToClassify
+                                                                         .GroupBy(x => x.Description)
+                                                                         .ToDictionary(g => g.Key, g => g.Select(x => x.StationId).ToList());
 
                     foreach (string desc in uniqueDescriptions)
                     {
-                        classificationCache[desc] = await classificationService.ClassifyStationDisruptionAsync(desc);
-                    }
+                        // Classify one unique description
+                        StationClassificationResult result = await classificationService.ClassifyStationDisruptionAsync(desc);
 
-                    foreach ((int stationId, string desc) in newDisruptionsToClassify)
-                    {
-                        if (classificationCache.TryGetValue(desc, out StationClassificationResult? result))
+                        // Immediately update all stations with this description
+                        if (!pendingByDescription.TryGetValue(desc, out List<int>? stationIds)) continue;
+                        foreach (int stationId in stationIds)
                         {
                             await stationHistoryRepository.InsertAsync(stationId, desc, result.CategoryId, result.IsFuture, result.ValidFrom, result.ValidUntil);
                         }
