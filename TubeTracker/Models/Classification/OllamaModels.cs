@@ -43,3 +43,24 @@ public class OllamaClassificationResult
     [JsonPropertyName("isAccessibility")]
     public bool IsAccessibility { get; init; }
 }
+
+public class OllamaModelListResponse
+{
+    [JsonPropertyName("models")]
+    public List<OllamaModelInfo> Models { get; set; } = [];
+}
+
+public class OllamaModelInfo
+{
+    [JsonPropertyName("name")]
+    public string Name { get; set; } = "";
+}
+
+public class OllamaPullRequest
+{
+    [JsonPropertyName("name")]
+    public required string Name { get; set; }
+    
+    [JsonPropertyName("stream")]
+    public bool Stream { get; set; } = false;
+}
