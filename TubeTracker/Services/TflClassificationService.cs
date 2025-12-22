@@ -35,7 +35,6 @@ public class TflClassificationService : ITflClassificationService
         {
             _cachedSeverities ??= (await _severityRepository.GetAllAsync()).ToArray();
             
-            // Find "Other" category for fallback
             StationStatusSeverity? otherSeverity = _cachedSeverities.FirstOrDefault(s => s.Description.Equals("Other", StringComparison.OrdinalIgnoreCase));
 
             if (otherSeverity is null)
@@ -48,16 +47,25 @@ public class TflClassificationService : ITflClassificationService
             string[] categories = _cachedSeverities.Select(c => c.Description).ToArray();
 
             string prompt = $"""
-                             Analyze the following London Underground station disruption:
-                             "{description}"
+                             Classify the following London Underground disruption into exactly one of these categories:
+                             [{string.Join(", ", categories)}]
 
-                             Tasks:
-                             1. Choose the most appropriate category from: {string.Join(", ", categories)}.
-                             2. If the issue is related to lifts, escalators, or step-free access, prioritize categories like "Lift Fault" or "Escalator Fault".
+                             Input: "{description}"
 
-                             Rules:
-                             - Use "Station Closed" if the station is fully or partially shut.
-                             - Use "Other" only if no specific category applies.
+                             Guidelines:
+                             1. "Station Closed" is ONLY for when the ENTIRE station is closed to the public.
+                             2. If a lift is broken, use "Lift Fault".
+                             3. If an escalator is broken, use "Escalator Fault".
+                             4. If the station is open but entrance/exit is restricted, use "Station Closed" or "Other" depending on severity, but NEVER if it's just a lift/escalator issue.
+                             5. "Signal Failure" and "Train Fault" are for train services, not station assets.
+
+                             Examples:
+                             - "Covent Garden: Station closed due to overcrowding." -> "Station Closed"
+                             - "Westminster: No step-free access due to lift fault." -> "Lift Fault"
+                             - "Victoria: Escalator 4 is out of service." -> "Escalator Fault"
+                             - "Baker Street: Severe delays due to signal failure." -> "Signal Failure"
+                             
+                             Respond with JSON only.
                              """;
 
             OllamaRequest request = new()
@@ -65,7 +73,7 @@ public class TflClassificationService : ITflClassificationService
                 Model = _settings.ModelName,
                 Messages =
                 [
-                    new OllamaMessage { Role = "system", Content = "You are an expert London Underground traffic analyst. Categorize station disruptions precisely according to the provided schema." },
+                    new OllamaMessage { Role = "system", Content = "You are a precise classification engine. Output only valid JSON." },
                     new OllamaMessage { Role = "user", Content = prompt }
                 ],
                 Format = new
