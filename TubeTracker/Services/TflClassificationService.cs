@@ -67,13 +67,14 @@ public class TflClassificationService : ITflClassificationService
                                      - "Other": Anything else.
                                   
                                   2. STATUS ("ActiveNow", "StartingLater", "Recurring"):
-                                     - "Recurring": ANY disruption with a daily/nightly time window (e.g., "after 2100", "closes at 2335", "each evening"). This is ALWAYS Recurring, regardless of the current time.
+                                     - "Recurring": A disruption with a daily/nightly TIME window (e.g., "after 2100", "at 2335", "each evening", "until 0500").
                                      - "StartingLater": Disruptions starting on a FUTURE DATE (e.g., "Starts this Saturday", "from Monday 29 Dec").
                                      - "ActiveNow": 
-                                        a) Long-term work (e.g., "Until 2026", "Until further notice") that has NO daily start/end times.
+                                        a) Continuous work with NO specific daily start/end times (e.g., "Until 2026", "Until further notice").
                                         b) Immediate incidents (e.g., "flooding", "signal failure").
+                                        c) Permanent station rules (e.g., "travel in front 7 coaches").
                                   
-                                  3. TIME RULE: If it mentions a specific time of day for the disruption, it is "Recurring".
+                                  3. TIME RULE: Only use "Recurring" if you see specific clock times (e.g. 2335, 21:00) or daily periods (e.g. "each evening", "every night"). DO NOT use it for coach numbers or other counts.
                                   
                                   OUTPUT: Respond ONLY with JSON.
                                   { "category": "string", "status": "ActiveNow|StartingLater|Recurring", "reasoning": "string" }
