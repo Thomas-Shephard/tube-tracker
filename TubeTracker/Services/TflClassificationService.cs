@@ -60,15 +60,18 @@ public class TflClassificationService : ITflClassificationService
 
                              Rules for "is_future":
                              - "is_future" is ONLY true if the text specifies a FUTURE START date or time (e.g., "From Monday", "Starting at 22:00", "Between 25th and 27th").
-                             - If the text describes a CURRENT state (e.g., "is not available", "is closed", "is faulty") or states a condition that ends in the future (e.g., "Until May 2026, will be closed"), "is_future" MUST be false.
-                             - IMPORTANT: "Until [Date]" or "[Item] will be closed until [Date]" implies the disruption is active NOW. Set "is_future" to false.
-                             - IMPORTANT: "Planned maintenance" or "Engineering work" that is happening NOW (e.g., "is not available due to planned maintenance") is NOT a future event. Set "is_future" to false.
+                             - If the text describes a CURRENT state (e.g., "is not available", "is closed", "is faulty") or states a condition that ends in the future (e.g., "Until May 2026, the subway will be closed"), "is_future" MUST be false.
+                             - IMPORTANT: Phrases like "Until [Date]" or "will be closed until [Date]" indicate the disruption is ALREADY ACTIVE. Set "is_future" to false.
+                             - IMPORTANT: "will be closed" should be interpreted as "is closed" when preceded by "Until [Date]".
+                             - IMPORTANT: "Planned maintenance" or "Engineering work" that is happening NOW is NOT a future event. Set "is_future" to false.
+                             - If there is any doubt or no clear future START date, set "is_future" to false.
 
                              Examples:
                              - "From 22:00 tonight, the station will be closed" -> { "is_future": true }
                              - "Until early May 2026, the subway will be closed" -> { "is_future": false }
                              - "Station closed due to a fire alert" -> { "is_future": false }
                              - "Lift unavailable until further notice" -> { "is_future": false }
+                             - "Starting 12th June, engineering works will begin" -> { "is_future": true }
 
                              Category Rules:
                              - "Closed" is for full station closures (e.g., "Station Closed").
