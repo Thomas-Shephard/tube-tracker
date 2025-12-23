@@ -67,14 +67,14 @@ public class TflClassificationService : ITflClassificationService
                                      - "Other": Anything else.
                                   
                                   2. STATUS ("ActiveNow" vs "StartingLater"):
-                                     - "ActiveNow":
-                                       a) Long-term work that started in the past (e.g., "From October until 2026", "Until Spring 2026").
-                                       b) Currently occurring (e.g., "between 1200 and 1800" and it is 16:00).
-                                     - "StartingLater":
-                                       a) Daily evening/night work that hasn't started yet TODAY (e.g., "after 2300 each evening" and it is 16:00).
+                                     - "StartingLater" (DEFAULT for timed events):
+                                       a) ANY disruption mentioning specific times (e.g., "at 2335", "after 2100", "between 2300 and 0500"). 
                                        b) Future dates (e.g., "Starts this Saturday").
+                                     - "ActiveNow":
+                                       a) ONLY for long-term work with no daily start time (e.g., "From October until 2026", "Until Spring 2026", "Closed until further notice").
+                                       b) Simple, non-timed alerts (e.g., "Station closed due to flooding").
                                   
-                                  3. TIME: "2310" is 23:10. If the current time is 16:00, "after 2310" is in the FUTURE (StartingLater).
+                                  3. TIME RULE: If you see a 4-digit time (2335, 2100, 0115) it is a timed event. Timed events are ALWAYS "StartingLater".
                                   
                                   OUTPUT: Respond ONLY with JSON.
                                   { "category": "string", "status": "ActiveNow|StartingLater", "reasoning": "string" }
