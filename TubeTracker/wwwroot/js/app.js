@@ -67,6 +67,20 @@ function joinList(list) {
     return list.slice(0, -1).join(", ") + ", & " + list[list.length - 1];
 }
 
+function getStatusColorClasses(urgency, isStation = false) {
+    if (urgency === 0) return { badge: "bg-success", card: "status-good" };
+    
+    if (isStation) {
+        if (urgency >= 3) return { badge: "bg-danger", card: "status-severe" };
+        if (urgency === 2) return { badge: "bg-warning text-dark", card: "status-minor" };
+        return { badge: "bg-info text-dark", card: "status-info" };
+    } else {
+        if (urgency >= 2) return { badge: "bg-danger", card: "status-severe" };
+        if (urgency === 1) return { badge: "bg-warning text-dark", card: "status-minor" };
+        return { badge: "bg-success", card: "status-good" };
+    }
+}
+
 function formatSeverity(activeStatuses) {
     if (!activeStatuses || activeStatuses.length === 0) {
         return { display: "Good Service", full: [], hasDetails: false };
@@ -82,7 +96,8 @@ function formatSeverity(activeStatuses) {
     // Create detailed status objects for modal
     const details = sorted.map(s => ({
         description: s.severity.description,
-        reason: s.statusDescription || s.reason || "" // Handle both API property names
+        reason: s.statusDescription || s.reason || "", // Handle both API property names
+        urgency: s.severity.urgency
     }));
 
     const fullListText = joinList(descriptions);
@@ -264,19 +279,11 @@ async function loadTubeStatus() {
                 const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
                 
                 const maxUrgency = activeStatuses.length ? Math.max(...activeStatuses.map(s => s.severity.urgency)) : 0;
-                
-                let badgeClass = "bg-success";
-                let statusClass = "status-good";
-                
-                if (maxUrgency >= 2) {
-                    badgeClass = "bg-danger";
-                    statusClass = "status-severe";
-                } else if (maxUrgency === 1) {
-                    badgeClass = "bg-warning text-dark";
-                    statusClass = "status-minor";
-                }
+                const classes = getStatusColorClasses(maxUrgency, false);
+                const badgeClass = classes.badge;
+                const statusClass = classes.card;
 
-                const cardHtml = createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, false, details, hasDetails);
+                const cardHtml = createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, false, details, hasDetails, false);
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = cardHtml;
                 const cardEl = tempDiv.firstElementChild;
@@ -374,19 +381,11 @@ async function loadTrackedStatus() {
                 const { display: severityDescription, full: details, hasDetails } = formatSeverity(activeStatuses);
                 const reasons = [...new Set(activeStatuses.map(s => s.reason).filter(r => r))];
                 const maxUrgency = line.maxUrgency || 0;
+                const classes = getStatusColorClasses(maxUrgency, false);
+                const badgeClass = classes.badge;
+                const statusClass = classes.card;
                 
-                let badgeClass = "bg-success";
-                let statusClass = "status-good";
-                
-                if (maxUrgency >= 2) {
-                    badgeClass = "bg-danger";
-                    statusClass = "status-severe";
-                } else if (maxUrgency === 1) {
-                    badgeClass = "bg-warning text-dark";
-                    statusClass = "status-minor";
-                }
-                
-                const cardHtml = createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged, details, hasDetails);
+                const cardHtml = createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged, details, hasDetails, false);
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = cardHtml;
                 const cardEl = tempDiv.firstElementChild;
@@ -407,26 +406,32 @@ async function loadTrackedStatus() {
                     return s.severity.urgency >= (station.minUrgency ?? 2);
                 });
 
-                return { ...station, activeStatuses, isFlagged };
+                const maxUrgency = activeStatuses.length ? Math.max(...activeStatuses.map(s => s.severity.urgency)) : 0;
+
+                return { ...station, activeStatuses, isFlagged, maxUrgency };
             }).sort((a, b) => {
                 if (a.isFlagged && !b.isFlagged) return -1;
                 if (!a.isFlagged && b.isFlagged) return 1;
-                return a.commonName.localeCompare(b.commonName);
+                return (b.maxUrgency - a.maxUrgency) || a.commonName.localeCompare(b.commonName);
             });
 
             sortedStations.forEach((station, index) => {
                 const activeStatuses = station.activeStatuses;
-                const hasIssues = station.isFlagged;
+                const hasIssues = activeStatuses.length > 0;
                 
                 // Manually build details for modal
                 const details = activeStatuses.map(s => ({
-                    description: 'Disruption',
-                    reason: s.statusDescription
+                    description: s.severity.description,
+                    reason: s.statusDescription,
+                    urgency: s.severity.urgency
                 }));
                 const hasDetails = hasIssues && details.length > 0;
                 
-                const badgeText = hasIssues ? "Disruption" : "No disruptions";
-                const reasons = hasIssues ? activeStatuses.map(s => s.statusDescription) : [];
+                let badgeText = "No disruptions";
+                if (hasIssues) {
+                    const allFuture = activeStatuses.every(s => s.isFuture);
+                    badgeText = allFuture ? "Future Disruption" : "Disruption";
+                }
                 
                 let badgeClass = "bg-success";
                 let statusClass = "status-good";
@@ -434,20 +439,12 @@ async function loadTrackedStatus() {
                 if (hasIssues) {
                     // Check max urgency among issues
                     const maxUrgency = Math.max(...activeStatuses.map(s => s.severity.urgency));
-                    
-                    if (maxUrgency >= 3) {
-                        badgeClass = "bg-danger";
-                        statusClass = "status-severe"; // Red
-                    } else if (maxUrgency === 2) {
-                        badgeClass = "bg-warning text-dark";
-                        statusClass = "status-minor"; // Orange/Yellow
-                    } else {
-                        badgeClass = "bg-info text-dark";
-                        statusClass = "status-info"; // Blue (Accessibility/Other)
-                    }
+                    const classes = getStatusColorClasses(maxUrgency, true);
+                    badgeClass = classes.badge;
+                    statusClass = classes.card;
                 }
 
-                const cardHtml = createCardHtml(station.commonName, badgeText, badgeClass, statusClass, [], hasIssues, details, hasDetails);
+                const cardHtml = createCardHtml(station.commonName, badgeText, badgeClass, statusClass, [], station.isFlagged, details, hasDetails, true);
                 const tempDiv = document.createElement('div');
                 tempDiv.innerHTML = cardHtml;
                 const cardEl = tempDiv.firstElementChild;
@@ -468,7 +465,7 @@ async function loadTrackedStatus() {
     }
 }
 
-function showStatusDetail(name, detailsJson) {
+function showStatusDetail(name, detailsJson, isStation = false) {
     const details = JSON.parse(decodeURIComponent(detailsJson));
     const modalLabel = document.getElementById('statusModalLabel');
     const modalBody = document.getElementById('statusModalBody');
@@ -479,15 +476,15 @@ function showStatusDetail(name, detailsJson) {
         const grouped = details.reduce((acc, d) => {
             const key = d.reason || "no-reason";
             if (!acc[key]) acc[key] = { reason: d.reason, statuses: [] };
-            acc[key].statuses.push(d.description);
+            acc[key].statuses.push({ description: d.description, urgency: d.urgency });
             return acc;
         }, {});
 
         let html = '';
         Object.values(grouped).forEach((group, i) => {
             const badges = group.statuses.map(s => {
-                const colorClass = s.includes('Good') ? 'bg-success' : (s.includes('Minor') || s === 'Disruption' ? 'bg-warning text-dark' : 'bg-danger');
-                return `<span class="badge ${colorClass} me-2">${s}</span>`;
+                const classes = getStatusColorClasses(s.urgency, isStation);
+                return `<span class="badge ${classes.badge} me-2">${s.description}</span>`;
             }).join('');
 
             html += `
@@ -506,7 +503,7 @@ function showStatusDetail(name, detailsJson) {
     }
 }
 
-function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlagged = false, details = null, hasDetails = false) {
+function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlagged = false, details = null, hasDetails = false, isStation = false) {
     const bell = isFlagged ? '<i class="bi bi-bell-fill me-2"></i>' : '';
     
     let infoIcon = '';
@@ -521,7 +518,7 @@ function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlag
             infoIcon = ` <i class="bi bi-info-circle-fill ms-1"></i>`;
         }
         
-        cardAttr = `onclick="showStatusDetail('${safeName}', '${safeDetailsJson}')" onkeydown="if(event.key==='Enter'||event.key===' '){showStatusDetail('${safeName}', '${safeDetailsJson}'); event.preventDefault();}" tabindex="0" role="button" style="cursor: pointer;"`;
+        cardAttr = `onclick="showStatusDetail('${safeName}', '${safeDetailsJson}', ${isStation})" onkeydown="if(event.key==='Enter'||event.key===' '){showStatusDetail('${safeName}', '${safeDetailsJson}', ${isStation}); event.preventDefault();}" tabindex="0" role="button" style="cursor: pointer;"`;
     }
 
     return `
