@@ -56,18 +56,19 @@ public class TflClassificationService : ITflClassificationService
 
             string systemPrompt = $"""
                                   You are a London Underground disruption classifier. 
-                                  Current Date: {dateString}
+                                  Current Date/Time: {dateString}
                                   
-                                  RULES:
-                                  1. "is_future" MUST be FALSE if the disruption is ALREADY active.
-                                  2. "Until [Future Date]" means it is ALREADY happening. -> is_future: false.
-                                  3. "From [Past Date]" means it has already started. -> is_future: false.
-                                  4. "will be closed" + "Until" is a CURRENT state. -> is_future: false.
+                                  LOGIC RULES:
+                                  1. Compare mentioned times (e.g., "2140", "22:00", "tonight") against the current time ({dateString}).
+                                  2. If the disruption START time is in the future (later today or a future date), "is_future" MUST be TRUE.
+                                  3. If the disruption is HAPPENING NOW or started in the past, "is_future" MUST be FALSE.
+                                  4. "Until [Date/Time]" indicates when a CURRENT disruption ends. -> is_future: false.
+                                  5. "will be closed" + "Until" is active now. -> is_future: false.
                                   
                                   EXAMPLES:
-                                  - "Until March 2026, exit 1 will be closed" -> is_future: false (Currently closed)
-                                  - "From 20 October until Nov 2026, escalators out" -> is_future: false (Already started)
-                                  - "From 22:00 tonight, station will close" -> is_future: true (Hasn't started)
+                                  - "Today 21:40, queuing system will be in operation" (Current time 15:00) -> is_future: true
+                                  - "Until early March 2026, exit 1 will be closed" -> is_future: false
+                                  - "From Monday 20 Oct (Past) until Nov 2026, route closed" -> is_future: false
                                   
                                   Output valid JSON only.
                                   """;
