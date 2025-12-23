@@ -74,7 +74,7 @@ public class TflClassificationService : ITflClassificationService
                                        a) ONLY for long-term work with no daily start time (e.g., "From October until 2026", "Until Spring 2026", "Closed until further notice").
                                        b) Simple, non-timed alerts (e.g., "Station closed due to flooding").
                                   
-                                  3. TIME RULE: If you see a 4-digit time (2335, 2100, 0115) it is a timed event. Timed events are ALWAYS "StartingLater".
+                                  3. TIME RULE: If you see a 4-digit time (2335, 2100, 0115) it is a timed event. Timed events are *ALMOST* ALWAYS "StartingLater".
                                   
                                   OUTPUT: Respond ONLY with JSON.
                                   { "category": "string", "status": "ActiveNow|StartingLater", "reasoning": "string" }
