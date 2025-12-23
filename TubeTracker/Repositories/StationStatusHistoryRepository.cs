@@ -58,16 +58,7 @@ public class StationStatusHistoryRepository(IDbConnection connection, StatusBack
     public async Task<IEnumerable<StationStatusHistory>> GetActiveByStationIdAsync(int stationId)
     {
         const string query = """
-                             SELECT ssh.history_id AS HistoryId, 
-                                    ssh.station_id AS StationId, 
-                                    ssh.status_description AS StatusDescription, 
-                                    ssh.status_severity_id AS StatusSeverityId,
-                                    ssh.is_future AS IsFuture,
-                                    ssh.first_reported_at AS FirstReportedAt, 
-                                    ssh.last_reported_at AS LastReportedAt,
-                                    sss.severity_id AS SeverityId,
-                                    sss.description AS Description,
-                                    sss.urgency AS Urgency
+                             SELECT ssh.*, sss.*
                              FROM StationStatusHistory ssh
                              JOIN StationStatusSeverity sss ON ssh.status_severity_id = sss.severity_id
                              WHERE ssh.station_id = @StationId 
@@ -84,7 +75,7 @@ public class StationStatusHistoryRepository(IDbConnection connection, StatusBack
                 return history;
             },
             new { StationId = stationId, Threshold = threshold },
-            splitOn: "SeverityId"
+            splitOn: "severity_id"
         );
     }
 
