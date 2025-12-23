@@ -67,11 +67,19 @@ public class TflClassificationService : ITflClassificationService
                                      - Use "Partially Closed" if specific exits, platforms, or directions are closed, but the station/line remains somewhat functional.
                                      - Use "Information" or "Other" for minor things like toilets, lifts, or queuing systems if the station remains open.
                                   2. TIME COMPARISON (MOST IMPORTANT):
-                                     - Compare the "Current Time" provided in the user prompt with the disruption's start/end times.
-                                     - If the current time is BEFORE the start time, it is "StartingLater".
-                                     - If the current time is BETWEEN the start and end times, it is "ActiveNow".
-                                  3. TIME FORMATS: Times like "2140" mean 21:40 (24-hour clock).
-                                  4. UNTIL FURTHER NOTICE: If no specific daily time window is given (e.g., "until spring 2026"), it is "ActiveNow".
+                                     - Disruption "After 2310 each evening" means a window of [23:10 today] to [approx 05:00 tomorrow].
+                                     - Current Time: {dateString} (e.g. 16:17)
+                                     - Is Current Time between times (e.g. 23:10 and 05:00?): ANSWER.
+                                     - IF ANSWER is NO: Status is "StartingLater" (it starts at 23:10 TONIGHT).
+                                     - YOU MUST CHECK: Is current_time >= start_time? If current_time is 16:00 and start_time is 23:00, then current_time is NOT >= start_time.
+                                  3. TIME FORMATS: "2310" is 23:10. "0115" is 01:15 (early morning).
+                                  4. UNTIL FURTHER NOTICE: If no daily time window is given (e.g., "until spring 2026"), it is "ActiveNow".
+                                  
+                                  MANDATORY ANALYSIS STEP:
+                                  1. Identify the start time: (e.g., 23:10)
+                                  2. Identify the current time: (e.g., 16:17)
+                                  3. Compare: Is 16:17 >= 23:10? (False)
+                                  4. Conclusion: "StartingLater"
                                   
                                   OUTPUT INSTRUCTIONS:
                                   - Respond ONLY with a valid JSON object.
