@@ -59,18 +59,22 @@ public class TflClassificationService : ITflClassificationService
                                   Current Date/Time: {dateString}
                                   
                                   LOGIC RULES:
-                                  1. CRITICAL: "Until [Date]" (even with future years like 2026) means it is ACTIVE NOW. -> is_future: false.
-                                  2. "This station is closed until..." is active now. -> is_future: false.
-                                  3. Compare mentioned times (e.g., "2140", "22:00") against current time ({dateString}).
-                                  4. If START time is in the future (later today or tomorrow), "is_future" MUST be TRUE.
-                                  5. If disruption is HAPPENING NOW or started in the past, "is_future" MUST be FALSE.
+                                  1. Identify the START time/date mentioned. If it is later than {dateString}, is_future MUST be TRUE.
+                                  2. "After [Time] tonight" is FUTURE if that time has not arrived yet.
+                                  3. "Until [Date]" (even with years like 2026) is ACTIVE NOW. -> is_future: false.
+                                  4. "This station is closed until..." is active now. -> is_future: false.
+                                  
+                                  REQUIRED THINKING PROCESS:
+                                  - Current Time: {dateString}
+                                  - Mentioned Start: [Identify it]
+                                  - Is Mentioned Start in the future? [Yes/No]
                                   
                                   EXAMPLES:
-                                  - "Today 21:40, queuing system starts" (Current time 15:00) -> is_future: true
+                                  - "Tonight after 23:10, no service" (Current time 15:00) -> is_future: true
+                                  - "From 21:40 today, queuing in operation" (Current time 15:00) -> is_future: true
+                                  - "Station is closed until spring 2026" -> is_future: false
                                   - "Until early March 2026, exit 1 will be closed" -> is_future: false
                                   - "From Monday 20 Oct (Past) until Nov 2026, route closed" -> is_future: false
-                                  - "Station is closed until spring 2026 for escalator replacement" -> is_future: false
-                                  - "Starting next Monday, station will close" -> is_future: true
                                   """;
 
             string userPrompt = $$"""
