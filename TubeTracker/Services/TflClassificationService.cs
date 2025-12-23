@@ -54,44 +54,35 @@ public class TflClassificationService : ITflClassificationService
             DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
             string dateString = now.ToString("dddd dd MMMM yyyy HH:mm");
 
-            string systemPrompt = $"""
+            string systemPrompt = $$"""
                                   You are a London Underground disruption classifier.
-                                  
-                                  STATUS DEFINITIONS:
-                                  - "ActiveNow": The disruption is happening RIGHT NOW. It is currently in progress.
-                                  - "StartingLater": The disruption is NOT yet in progress, but the NEXT occurrence starts in the future.
+                                  Current Date: {{dateString}}
                                   
                                   RULES:
-                                  1. CATEGORY SELECTION: Be precise. 
-                                     - Use "Closed" ONLY if the entire station or line segment is completely inaccessible.
-                                     - Use "Partially Closed" if specific exits, platforms, or directions are closed, but the station/line remains somewhat functional.
-                                     - Use "Information" or "Other" for minor things like toilets, lifts, or queuing systems if the station remains open.
-                                  2. TIME COMPARISON (MOST IMPORTANT):
-                                     - Disruption "After 2310 each evening" means a window of [23:10 today] to [approx 05:00 tomorrow].
-                                     - Current Time: {dateString} (e.g. 16:17)
-                                     - Is Current Time between times (e.g. 23:10 and 05:00?): ANSWER.
-                                     - IF ANSWER is NO: Status is "StartingLater" (it starts at 23:10 TONIGHT).
-                                     - YOU MUST CHECK: Is current_time >= start_time? If current_time is 16:00 and start_time is 23:00, then current_time is NOT >= start_time.
-                                  3. TIME FORMATS: "2310" is 23:10. "0115" is 01:15 (early morning).
-                                  4. UNTIL FURTHER NOTICE: If no daily time window is given (e.g., "until spring 2026"), it is "ActiveNow".
+                                  1. CATEGORY:
+                                     - "Closed": Entire station or line is shut.
+                                     - "Partially Closed": Specific parts are shut (exits, platforms, one direction, escalators).
+                                     - "Accessibility Issue": Lifts out of service, or specific step-free access routes unavailable.
+                                     - "Information": Minor things (toilets, queuing, ticket halls).
+                                     - "Other": Anything else.
                                   
-                                  MANDATORY ANALYSIS STEP:
-                                  1. Identify the start time: (e.g., 23:10)
-                                  2. Identify the current time: (e.g., 16:17)
-                                  3. Compare: Is 16:17 >= 23:10? (False)
-                                  4. Conclusion: "StartingLater"
+                                  2. STATUS ("ActiveNow" vs "StartingLater"):
+                                     - "ActiveNow":
+                                       a) Long-term work that started in the past (e.g., "From October until 2026", "Until Spring 2026").
+                                       b) Currently occurring (e.g., "between 1200 and 1800" and it is 16:00).
+                                     - "StartingLater":
+                                       a) Daily evening/night work that hasn't started yet TODAY (e.g., "after 2300 each evening" and it is 16:00).
+                                       b) Future dates (e.g., "Starts this Saturday").
                                   
-                                  OUTPUT INSTRUCTIONS:
-                                  - Respond ONLY with a valid JSON object.
-                                  - No preamble, no explanation outside the JSON.
-                                  - JSON MUST contain "category", "status", "time_analysis", and "reasoning" keys.
+                                  3. TIME: "2310" is 23:10. If the current time is 16:00, "after 2310" is in the FUTURE (StartingLater).
+                                  
+                                  OUTPUT: Respond ONLY with JSON.
+                                  { "category": "string", "status": "ActiveNow|StartingLater", "reasoning": "string" }
                                   """;
 
-            string userPrompt = $$"""
-                                Current Time: {{dateString}}
-                                Classify this disruption: "{{description}}"
-                                Allowed Categories: {{string.Join(", ", categories)}}
-                                Expected JSON format: { "category": "string", "status": "ActiveNow|StartingLater", "time_analysis": "string", "reasoning": "string" }
+            string userPrompt = $"""
+                                Classify this: "{description}"
+                                Allowed Categories: {string.Join(", ", categories)}
                                 """;
 
             OllamaRequest request = new()
@@ -136,9 +127,8 @@ public class TflClassificationService : ITflClassificationService
                     IsFuture = status == "StartingLater"
                 };
 
-                _logger.LogInformation("Classified disruption: '{Description}' -> Category: {Category}, IsFuture: {IsFuture}, Analysis: {Analysis}, Reasoning: {Reasoning}",
+                _logger.LogInformation("Classified disruption: '{Description}' -> Category: {Category}, IsFuture: {IsFuture}, Reasoning: {Reasoning}",
                     description, categoryName ?? "Unknown", finalResult.IsFuture,
-                    root.TryGetProperty("time_analysis", out JsonElement analysis) ? analysis.GetString() : "N/A",
                     root.TryGetProperty("reasoning", out JsonElement reasoning) ? reasoning.GetString() : "None");
 
                 _cache[description] = finalResult;
