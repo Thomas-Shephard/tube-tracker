@@ -67,14 +67,15 @@ public class TflClassificationService : ITflClassificationService
                                      - "Other": Anything else.
                                   
                                   2. STATUS ("ActiveNow" vs "StartingLater"):
-                                     - "StartingLater" (DEFAULT for timed events):
-                                       a) ANY disruption mentioning specific times (e.g., "at 2335", "after 2100", "between 2300 and 0500"). 
-                                       b) Future dates (e.g., "Starts this Saturday").
-                                     - "ActiveNow":
-                                       a) ONLY for long-term work with no daily start time (e.g., "From October until 2026", "Until Spring 2026", "Closed until further notice").
-                                       b) Simple, non-timed alerts (e.g., "Station closed due to flooding").
+                                     - "ActiveNow" (Priority):
+                                       a) Long-term work (e.g., "Until 2026", "Until Spring 2026", "From October until..."). 
+                                       b) Immediate alerts (e.g., "Closed due to flooding", "No service").
+                                     - "StartingLater":
+                                       a) Daily timed closures that haven't started yet (e.g., "after 2100 each evening", "at 2335").
+                                       b) Specific future dates (e.g., "Starts this Saturday").
                                   
-                                  3. TIME RULE: If you see a 4-digit time (2335, 2100, 0115) it is a timed event. Timed events are *ALMOST* ALWAYS "StartingLater".
+                                  3. TIME RULE: Only use times if they define when the disruption itself starts (e.g., "closes at 2100"). IGNORE times for alternatives (e.g., "toilets nearby are open 0800-0000").
+                                  4. Long-term work (years/months) is ALWAYS "ActiveNow".
                                   
                                   OUTPUT: Respond ONLY with JSON.
                                   { "category": "string", "status": "ActiveNow|StartingLater", "reasoning": "string" }
