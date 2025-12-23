@@ -66,19 +66,17 @@ public class TflClassificationService : ITflClassificationService
                                      - "Information": Minor things (toilets, queuing, ticket halls).
                                      - "Other": Anything else.
                                   
-                                  2. STATUS ("ActiveNow" vs "StartingLater"):
-                                     - "ActiveNow" (Priority):
-                                       a) Long-term work (e.g., "Until 2026", "Until Spring 2026", "From October until..."). 
-                                       b) Immediate alerts (e.g., "Closed due to flooding", "No service").
-                                     - "StartingLater":
-                                       a) Daily timed closures that haven't started yet (e.g., "after 2100 each evening", "at 2335").
-                                       b) Specific future dates (e.g., "Starts this Saturday").
+                                  2. STATUS ("ActiveNow", "StartingLater", "Recurring"):
+                                     - "Recurring": ANY disruption with a daily/nightly time window (e.g., "after 2100", "closes at 2335", "each evening"). This is ALWAYS Recurring, regardless of the current time.
+                                     - "StartingLater": Disruptions starting on a FUTURE DATE (e.g., "Starts this Saturday", "from Monday 29 Dec").
+                                     - "ActiveNow": 
+                                        a) Long-term work (e.g., "Until 2026", "Until further notice") that has NO daily start/end times.
+                                        b) Immediate incidents (e.g., "flooding", "signal failure").
                                   
-                                  3. TIME RULE: Only use times if they define when the disruption itself starts (e.g., "closes at 2100"). IGNORE times for alternatives (e.g., "toilets nearby are open 0800-0000").
-                                  4. Long-term work (years/months) is ALWAYS "ActiveNow".
+                                  3. TIME RULE: If it mentions a specific time of day for the disruption, it is "Recurring".
                                   
                                   OUTPUT: Respond ONLY with JSON.
-                                  { "category": "string", "status": "ActiveNow|StartingLater", "reasoning": "string" }
+                                  { "category": "string", "status": "ActiveNow|StartingLater|Recurring", "reasoning": "string" }
                                   """;
 
             string userPrompt = $"""
@@ -125,11 +123,11 @@ public class TflClassificationService : ITflClassificationService
                 StationClassificationResult finalResult = new()
                 { 
                     CategoryId = matchedId ?? otherSeverity.SeverityId, 
-                    IsFuture = status == "StartingLater"
+                    IsFuture = status == "StartingLater" || status == "Recurring"
                 };
 
-                _logger.LogInformation("Classified disruption: '{Description}' -> Category: {Category}, IsFuture: {IsFuture}, Reasoning: {Reasoning}",
-                    description, categoryName ?? "Unknown", finalResult.IsFuture,
+                _logger.LogInformation("Classified disruption: '{Description}' -> Category: {Category}, Status: {Status}, IsFuture: {IsFuture}, Reasoning: {Reasoning}",
+                    description, categoryName ?? "Unknown", status ?? "Unknown", finalResult.IsFuture,
                     root.TryGetProperty("reasoning", out JsonElement reasoning) ? reasoning.GetString() : "None");
 
                 _cache[description] = finalResult;
