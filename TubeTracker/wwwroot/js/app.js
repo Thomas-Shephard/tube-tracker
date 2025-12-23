@@ -545,7 +545,6 @@ let allStations = [];
 let trackedStations = [];
 
 const urgencyLevels = [
-    { val: 0, label: 'Good' },
     { val: 1, label: 'Minor' },
     { val: 2, label: 'Severe' },
     { val: 3, label: 'Critical' }
@@ -705,6 +704,10 @@ function renderStations() {
                             <input class="form-check-input" type="checkbox" id="notify-station-${station.stationId}" ${tracked.notify ? 'checked' : ''} onchange="updateStationSettings(${station.stationId})">
                             <label class="form-check-label" for="notify-station-${station.stationId}">Email Notifications</label>
                         </div>
+                        <div class="form-check form-switch mb-1">
+                            <input class="form-check-input" type="checkbox" id="accessibility-station-${station.stationId}" ${tracked.notifyAccessibility ? 'checked' : ''} onchange="updateStationSettings(${station.stationId})">
+                            <label class="form-check-label" for="accessibility-station-${station.stationId}">Include accessibility information</label>
+                        </div>
                     </div>
                     <label class="form-label x-small text-muted mb-1">Minimum Alert Urgency</label>
                     <div class="d-flex align-items-center gap-2">
@@ -738,13 +741,14 @@ function renderStations() {
 
 async function updateStationSettings(stationId) {
     const notify = document.getElementById(`notify-station-${stationId}`).checked;
+    const notifyAccessibility = document.getElementById(`accessibility-station-${stationId}`).checked;
     const minUrgency = parseInt(document.getElementById(`urgency-station-${stationId}`).value);
     
     try {
         const res = await fetch('/api/tracking/stations', {
             method: 'PUT',
             headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ stationId, notify, minUrgency })
+            body: JSON.stringify({ stationId, notify, notifyAccessibility, minUrgency })
         });
         if (res.ok) showSavedFeedback('station', stationId);
     } catch (err) { console.error(err); }
@@ -758,7 +762,7 @@ async function toggleStation(stationId, currentlyTracked) {
         const res = await fetch(url, {
             method: method,
             headers: { ...getAuthHeader(), 'Content-Type': 'application/json' },
-            body: currentlyTracked ? null : JSON.stringify({ stationId, notify: true, minUrgency: 2 })
+            body: currentlyTracked ? null : JSON.stringify({ stationId, notify: true, notifyAccessibility: false, minUrgency: 2 })
         });
         if (res.ok) {
             // Update skeleton cache

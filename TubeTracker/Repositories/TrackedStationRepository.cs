@@ -21,13 +21,13 @@ public class TrackedStationRepository(IDbConnection connection) : ITrackedStatio
 
     public async Task AddAsync(TrackedStation trackedStation, IDbTransaction? transaction = null)
     {
-        const string query = "INSERT INTO TrackedStation (user_id, station_id, notify, min_urgency, created_at) VALUES (@UserId, @StationId, @Notify, @MinUrgency, @CreatedAt)";
+        const string query = "INSERT INTO TrackedStation (user_id, station_id, notify, notify_accessibility, min_urgency, created_at) VALUES (@UserId, @StationId, @Notify, @NotifyAccessibility, @MinUrgency, @CreatedAt)";
         await connection.ExecuteAsync(query, trackedStation, transaction);
     }
 
     public async Task UpdateAsync(TrackedStation trackedStation, IDbTransaction? transaction = null)
     {
-        const string query = "UPDATE TrackedStation SET notify = @Notify, min_urgency = @MinUrgency, last_notified_at = @LastNotifiedAt WHERE user_id = @UserId AND station_id = @StationId";
+        const string query = "UPDATE TrackedStation SET notify = @Notify, notify_accessibility = @NotifyAccessibility, min_urgency = @MinUrgency, last_notified_at = @LastNotifiedAt WHERE user_id = @UserId AND station_id = @StationId";
         await connection.ExecuteAsync(query, trackedStation, transaction);
     }
 
