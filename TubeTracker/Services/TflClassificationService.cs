@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using TubeTracker.API.Models.Classification;
 using TubeTracker.API.Models.Entities;
@@ -13,6 +14,7 @@ public class TflClassificationService : ITflClassificationService
     private readonly IStationStatusSeverityRepository _severityRepository;
     private readonly ILogger<TflClassificationService> _logger;
     private readonly TimeProvider _timeProvider;
+    private readonly ConcurrentDictionary<string, StationClassificationResult> _cache = new();
 
     private StationStatusSeverity[]? _cachedSeverities;
 
@@ -34,6 +36,8 @@ public class TflClassificationService : ITflClassificationService
 
     public async Task<StationClassificationResult> ClassifyStationDisruptionAsync(string description)
     {
+        if (_cache.TryGetValue(description, out var cached)) return cached;
+
         try
         {
             _cachedSeverities ??= (await _severityRepository.GetAllAsync()).ToArray();
@@ -42,12 +46,6 @@ public class TflClassificationService : ITflClassificationService
 
             string[] categories = _cachedSeverities.Select(c => c.Description).ToArray();
             
-            // Debug check for critical category
-            if (!categories.Contains("Accessibility Issue", StringComparer.OrdinalIgnoreCase))
-            {
-                _logger.LogWarning("Category 'Accessibility Issue' is MISSING from database. Model cannot select it.");
-            }
-
             DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
             string dateString = now.ToString("dddd dd MMMM yyyy HH:mm");
 
@@ -60,15 +58,18 @@ public class TflClassificationService : ITflClassificationService
                              Allowed Categories:
                              {{string.Join(", ", categories)}}
 
-                             Rules:
-                             - Set "is_future" to true IF the event is planned for later dates/times relative to Current Date/Time.
-                             - If happening NOW, "is_future" is false.
+                             Rules for "is_future":
+                             - "is_future" is ONLY true if the text specifies a future start date or time (e.g., "From Monday", "Starting at 22:00", "Between 25th and 27th").
+                             - If the text describes a current state (e.g., "is not available", "is closed", "is faulty"), "is_future" MUST be false.
+                             - IMPORTANT: "Planned maintenance" or "Engineering work" that is happening NOW (e.g., "is not available due to planned maintenance") is NOT a future event. Set "is_future" to false.
+
+                             Category Rules:
                              - "Closed" is for full station closures (e.g., "Station Closed").
                              - "Partially Closed" for entrance/exit closures or partial restrictions.
                              - "Accessibility Issue" for lift faults, step-free access unavailable.
                              - "Information" for general advice or minor notes.
-                             - "No Disruptions" if the message explicitly says Good Service or no issues (rarely used for disruptions).
-                             - "Other" for anything else (delays, severe delays, etc.).
+                             - "No Disruptions" if the message explicitly says Good Service or no issues.
+                             - "Other" for anything else.
                              
                              Respond with JSON: { "category": "string", "is_future": boolean }
                              """;
@@ -95,11 +96,14 @@ public class TflClassificationService : ITflClassificationService
             if (classification is null) return new StationClassificationResult { CategoryId = otherSeverity.SeverityId };
 
             int? matchedId = GetSeverityId(classification.Category);
-            return new StationClassificationResult 
+            var finalResult = new StationClassificationResult 
             { 
                 CategoryId = matchedId ?? otherSeverity.SeverityId, 
                 IsFuture = classification.IsFuture
             };
+
+            _cache[description] = finalResult;
+            return finalResult;
         }
         catch (Exception ex)
         {
