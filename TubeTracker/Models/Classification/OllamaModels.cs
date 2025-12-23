@@ -34,6 +34,9 @@ public class OllamaResponse
 
 public class OllamaClassificationResult
 {
+    [JsonPropertyName("reasoning")]
+    public string? Reasoning { get; init; }
+
     [JsonPropertyName("category")]
     public string Category { get; init; } = "Other";
 

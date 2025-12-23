@@ -58,20 +58,19 @@ public class TflClassificationService : ITflClassificationService
                              Allowed Categories:
                              {{string.Join(", ", categories)}}
 
-                             Rules for "is_future":
-                             - "is_future" is ONLY true if the text specifies a FUTURE START date or time (e.g., "From Monday", "Starting at 22:00", "Between 25th and 27th").
-                             - If the text describes a CURRENT state (e.g., "is not available", "is closed", "is faulty") or states a condition that ends in the future (e.g., "Until May 2026, the subway will be closed"), "is_future" MUST be false.
-                             - IMPORTANT: Phrases like "Until [Date]" or "will be closed until [Date]" indicate the disruption is ALREADY ACTIVE. Set "is_future" to false.
-                             - IMPORTANT: "will be closed" should be interpreted as "is closed" when preceded by "Until [Date]".
-                             - IMPORTANT: "Planned maintenance" or "Engineering work" that is happening NOW is NOT a future event. Set "is_future" to false.
-                             - If there is any doubt or no clear future START date, set "is_future" to false.
+                             CRITICAL RULES for "is_future":
+                             1. "is_future" MUST be false if the disruption is HAPPENING NOW.
+                             2. "is_future" MUST be false if the text says "is closed", "is unavailable", "is not available", or "is faulty".
+                             3. "Until [Date]" (e.g., "Until spring 2026") specifies when a CURRENT disruption ENDS. It does NOT mean it is a future disruption.
+                             4. "is_future" is ONLY true if there is a CLEAR future START date or time (e.g., "From Monday", "Starting at 22:00", "Between 25th and 27th") AND it has not started yet.
+                             5. If the text describes a current state that will continue until a future date, "is_future" MUST be false.
 
                              Examples:
-                             - "From 22:00 tonight, the station will be closed" -> { "is_future": true }
-                             - "Until early May 2026, the subway will be closed" -> { "is_future": false }
-                             - "Station closed due to a fire alert" -> { "is_future": false }
-                             - "Lift unavailable until further notice" -> { "is_future": false }
-                             - "Starting 12th June, engineering works will begin" -> { "is_future": true }
+                             - "From 22:00 tonight, the station will be closed" -> { "is_future": true, "reasoning": "Starts at 22:00 tonight, which is in the future." }
+                             - "Until early May 2026, the subway will be closed" -> { "is_future": false, "reasoning": "The closure is active now and ends in May 2026." }
+                             - "This station is closed until spring 2026" -> { "is_future": false, "reasoning": "The station is currently closed." }
+                             - "Station closed due to a fire alert" -> { "is_future": false, "reasoning": "Currently closed." }
+                             - "Lift unavailable until further notice" -> { "is_future": false, "reasoning": "Currently unavailable." }
 
                              Category Rules:
                              - "Closed" is for full station closures (e.g., "Station Closed").
@@ -81,7 +80,7 @@ public class TflClassificationService : ITflClassificationService
                              - "No Disruptions" if the message explicitly says Good Service or no issues.
                              - "Other" for anything else.
                              
-                             Respond with JSON: { "category": "string", "is_future": boolean }
+                             Respond with JSON: { "reasoning": "string", "category": "string", "is_future": boolean }
                              """;
 
             OllamaRequest request = new()
