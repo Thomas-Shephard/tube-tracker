@@ -52,11 +52,16 @@ public class TrackedStationRepository(IDbConnection connection) : ITrackedStatio
                              JOIN User u ON ts.user_id = u.user_id
                              JOIN Station s ON ts.station_id = s.station_id
                              JOIN StationStatusHistory ssh ON s.station_id = ssh.station_id
+                             JOIN StationStatusSeverity ss ON ssh.status_severity_id = ss.severity_id
                              WHERE ts.notify = 1
                                AND u.is_verified = 1
                                AND ssh.last_reported_at > DATE_SUB(UTC_TIMESTAMP(), INTERVAL 15 MINUTE)
                                AND (max_notified_history_id IS NULL OR ssh.history_id > max_notified_history_id)
                                AND ssh.status_description != 'No Issues'
+                               AND (
+                                   ss.urgency >= ts.min_urgency 
+                                   OR (ts.notify_accessibility = 1 AND ss.description = 'Accessibility Issue')
+                               )
                              """;
 
         return await connection.QueryAsync<StationNotificationModel>(query);

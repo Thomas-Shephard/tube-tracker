@@ -58,6 +58,8 @@ public class GetTrackedStatusesController(
                 station.CommonName,
                 station.TflId,
                 trackedStation.Notify,
+                trackedStation.NotifyAccessibility,
+                trackedStation.MinUrgency,
                 Statuses = statuses
             });
         }

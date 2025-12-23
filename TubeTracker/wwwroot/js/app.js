@@ -396,8 +396,17 @@ async function loadTrackedStatus() {
             });
 
             const sortedStations = data.stations.map(station => {
-                const activeStatuses = station.statuses || station.Statuses || [];
-                const isFlagged = activeStatuses.length > 0 && activeStatuses.some(s => s.statusDescription !== 'No Issues');
+                const rawStatuses = station.statuses || station.Statuses || [];
+                const activeStatuses = rawStatuses.filter(s => {
+                    if (s.severity.description === 'Accessibility Issue') return station.notifyAccessibility;
+                    return s.severity.urgency > 0;
+                });
+
+                const isFlagged = activeStatuses.some(s => {
+                    if (s.severity.description === 'Accessibility Issue') return station.notifyAccessibility;
+                    return s.severity.urgency >= (station.minUrgency ?? 2);
+                });
+
                 return { ...station, activeStatuses, isFlagged };
             }).sort((a, b) => {
                 if (a.isFlagged && !b.isFlagged) return -1;
