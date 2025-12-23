@@ -59,18 +59,18 @@ public class TflClassificationService : ITflClassificationService
                                   Current Date/Time: {dateString}
                                   
                                   LOGIC RULES:
-                                  1. Compare mentioned times (e.g., "2140", "22:00", "tonight") against the current time ({dateString}).
-                                  2. If the disruption START time is in the future (later today or a future date), "is_future" MUST be TRUE.
-                                  3. If the disruption is HAPPENING NOW or started in the past, "is_future" MUST be FALSE.
-                                  4. "Until [Date/Time]" indicates when a CURRENT disruption ends. -> is_future: false.
-                                  5. "will be closed" + "Until" is active now. -> is_future: false.
+                                  1. CRITICAL: "Until [Date]" (even with future years like 2026) means it is ACTIVE NOW. -> is_future: false.
+                                  2. "This station is closed until..." is active now. -> is_future: false.
+                                  3. Compare mentioned times (e.g., "2140", "22:00") against current time ({dateString}).
+                                  4. If START time is in the future (later today or tomorrow), "is_future" MUST be TRUE.
+                                  5. If disruption is HAPPENING NOW or started in the past, "is_future" MUST be FALSE.
                                   
                                   EXAMPLES:
-                                  - "Today 21:40, queuing system will be in operation" (Current time 15:00) -> is_future: true
+                                  - "Today 21:40, queuing system starts" (Current time 15:00) -> is_future: true
                                   - "Until early March 2026, exit 1 will be closed" -> is_future: false
                                   - "From Monday 20 Oct (Past) until Nov 2026, route closed" -> is_future: false
-                                  
-                                  Output valid JSON only.
+                                  - "Station is closed until spring 2026 for escalator replacement" -> is_future: false
+                                  - "Starting next Monday, station will close" -> is_future: true
                                   """;
 
             string userPrompt = $$"""
