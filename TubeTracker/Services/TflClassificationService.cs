@@ -56,19 +56,21 @@ public class TflClassificationService : ITflClassificationService
 
             string systemPrompt = $"""
                                   STATUS DEFINITIONS:
-                                  - "ActiveNow": The disruption is happening RIGHT NOW at {dateString}. This includes continuous closures (e.g., "until further notice", "until 2026") or if the current time falls within a specific stated window (e.g., it is 22:00 and the disruption is "from 21:00 to 05:00").
-                                  - "StartingLater": The NEXT scheduled occurrence of this disruption starts in the future relative to {dateString}. 
+                                  - "ActiveNow": The disruption is happening RIGHT NOW at {dateString}. It is currently in progress.
+                                  - "StartingLater": The disruption is NOT yet in progress, but the NEXT occurrence starts in the future.
                                   
                                   CRITICAL LOGIC:
-                                  1. TIMED CLOSURES: If a disruption happens "each evening" or "after [Time]", you MUST compare [Time] with the current time ({dateString}).
-                                  2. If the current time is BEFORE the start time today, it is "StartingLater".
-                                  3. If the current time is AFTER the start time but BEFORE the end time (usually next morning), it is "ActiveNow".
-                                  4. If the disruption is for specific dates (e.g., "Monday 22 and Tuesday 23") and today is Tuesday but before the evening start time, it is "StartingLater".
+                                  1. TIME FORMATS: Times may appear as "2310" or "0045". Treat these as 23:10 and 00:45 (24-hour clock).
+                                  2. DATE RANGES: If a disruption spans multiple days (e.g., "Monday 22 and Tuesday 23") and occurs "after [Time] each evening":
+                                     - If today is Tuesday and the current time is 15:58, then the "after 2310" session for tonight has NOT started.
+                                     - Therefore, status is "StartingLater".
+                                  3. PAST SESSIONS: Ignore sessions that have already finished (like Monday's session). Only care if it is active RIGHT NOW or starting in the future.
+                                  4. UNTIL FURTHER NOTICE: If it says "until further notice" or "until [Future Date]" without a specific time window, it is "ActiveNow".
                                   
-                                  EXAMPLES:
-                                  - "Mon 22 and Tue 23, after 23:10 each evening" (Current time: Tue 15:00) -> status: StartingLater.
-                                  - "Station closed until spring 2026" -> status: ActiveNow.
-                                  - "Today after 21:00, station closed" (Current time: 22:00) -> status: ActiveNow.
+                                  THINKING STEP:
+                                  - Current minute: {dateString}
+                                  - Start time of next session: ?
+                                  - Is current minute >= start time AND < end time? If yes: ActiveNow. Otherwise: StartingLater.
                                   
                                   OUTPUT INSTRUCTIONS:
                                   - Respond ONLY with a valid JSON object.
