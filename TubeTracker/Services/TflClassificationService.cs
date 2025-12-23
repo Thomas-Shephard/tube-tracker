@@ -55,33 +55,35 @@ public class TflClassificationService : ITflClassificationService
             string dateString = now.ToString("dddd dd MMMM yyyy HH:mm");
 
             string systemPrompt = $"""
+                                  You are a London Underground disruption classifier.
+                                  
                                   STATUS DEFINITIONS:
-                                  - "ActiveNow": The disruption is happening RIGHT NOW at {dateString}. It is currently in progress.
+                                  - "ActiveNow": The disruption is happening RIGHT NOW. It is currently in progress.
                                   - "StartingLater": The disruption is NOT yet in progress, but the NEXT occurrence starts in the future.
                                   
-                                  CRITICAL LOGIC:
-                                  1. TIME FORMATS: Times may appear as "2310" or "0045". Treat these as 23:10 and 00:45 (24-hour clock).
-                                  2. DATE RANGES: If a disruption spans multiple days (e.g., "Monday 22 and Tuesday 23") and occurs "after [Time] each evening":
-                                     - If today is Tuesday and the current time is 15:58, then the "after 2310" session for tonight has NOT started.
-                                     - Therefore, status is "StartingLater".
-                                  3. PAST SESSIONS: Ignore sessions that have already finished (like Monday's session). Only care if it is active RIGHT NOW or starting in the future.
-                                  4. UNTIL FURTHER NOTICE: If it says "until further notice" or "until [Future Date]" without a specific time window, it is "ActiveNow".
-                                  
-                                  THINKING STEP:
-                                  - Current minute: {dateString}
-                                  - Start time of next session: ?
-                                  - Is current minute >= start time AND < end time? If yes: ActiveNow. Otherwise: StartingLater.
+                                  RULES:
+                                  1. CATEGORY SELECTION: Be precise. 
+                                     - Use "Closed" ONLY if the entire station or line segment is completely inaccessible.
+                                     - Use "Partially Closed" if specific exits, platforms, or directions are closed, but the station/line remains somewhat functional.
+                                     - Use "Information" or "Other" for minor things like toilets, lifts, or queuing systems if the station remains open.
+                                  2. TIME COMPARISON (MOST IMPORTANT):
+                                     - Compare the "Current Time" provided in the user prompt with the disruption's start/end times.
+                                     - If the current time is BEFORE the start time, it is "StartingLater".
+                                     - If the current time is BETWEEN the start and end times, it is "ActiveNow".
+                                  3. TIME FORMATS: Times like "2140" mean 21:40 (24-hour clock).
+                                  4. UNTIL FURTHER NOTICE: If no specific daily time window is given (e.g., "until spring 2026"), it is "ActiveNow".
                                   
                                   OUTPUT INSTRUCTIONS:
                                   - Respond ONLY with a valid JSON object.
                                   - No preamble, no explanation outside the JSON.
-                                  - JSON MUST contain "category", "status", and "reasoning" keys.
+                                  - JSON MUST contain "category", "status", "time_analysis", and "reasoning" keys.
                                   """;
 
             string userPrompt = $$"""
+                                Current Time: {{dateString}}
                                 Classify this disruption: "{{description}}"
                                 Allowed Categories: {{string.Join(", ", categories)}}
-                                Expected JSON format: { "category": "string", "status": "ActiveNow|StartingLater", "reasoning": "string" }
+                                Expected JSON format: { "category": "string", "status": "ActiveNow|StartingLater", "time_analysis": "string", "reasoning": "string" }
                                 """;
 
             OllamaRequest request = new()
@@ -126,8 +128,9 @@ public class TflClassificationService : ITflClassificationService
                     IsFuture = status == "StartingLater"
                 };
 
-                _logger.LogInformation("Classified disruption: '{Description}' -> Category: {Category}, IsFuture: {IsFuture}, Reasoning: {Reasoning}",
-                    description, categoryName ?? "Unknown", finalResult.IsFuture, 
+                _logger.LogInformation("Classified disruption: '{Description}' -> Category: {Category}, IsFuture: {IsFuture}, Analysis: {Analysis}, Reasoning: {Reasoning}",
+                    description, categoryName ?? "Unknown", finalResult.IsFuture,
+                    root.TryGetProperty("time_analysis", out JsonElement analysis) ? analysis.GetString() : "N/A",
                     root.TryGetProperty("reasoning", out JsonElement reasoning) ? reasoning.GetString() : "None");
 
                 _cache[description] = finalResult;
