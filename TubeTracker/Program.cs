@@ -94,6 +94,7 @@ public class Program
             });
         
         builder.Services.AddSingleton<ITokenService, TokenService>();
+        builder.Services.AddSingleton<IOllamaStatusService, OllamaStatusService>();
 
         // Conditional Email Service Registration
         bool useMockEmailService = bool.TryParse(builder.Configuration["USE_MOCK_EMAIL_SERVICE"], out bool useMock) && useMock;
@@ -110,13 +111,13 @@ public class Program
 
         // Register Background Services
         builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
+        builder.Services.AddHostedService<OllamaModelInitializer>();
         builder.Services.AddHostedService<EmailBackgroundService>();
         builder.Services.AddHostedService<TubeStatusBackgroundService>();
         builder.Services.AddHostedService<StationClassificationBackgroundService>();
         builder.Services.AddHostedService<TubeMetadataBackgroundService>();
         builder.Services.AddHostedService<NotificationBackgroundService>();
         builder.Services.AddHostedService<HistoryCleanupBackgroundService>();
-        builder.Services.AddHostedService<OllamaModelInitializer>();
 
         // Register background services/handlers that use TimeProvider
         builder.Services.AddSingleton(TimeProvider.System);

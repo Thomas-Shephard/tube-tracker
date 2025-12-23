@@ -12,6 +12,7 @@ public class TflClassificationService : ITflClassificationService
     private readonly HttpClient _httpClient;
     private readonly OllamaSettings _settings;
     private readonly IStationStatusSeverityRepository _severityRepository;
+    private readonly IOllamaStatusService _statusService;
     private readonly ILogger<TflClassificationService> _logger;
     private readonly TimeProvider _timeProvider;
     private readonly ConcurrentDictionary<string, StationClassificationResult> _cache = new();
@@ -22,12 +23,14 @@ public class TflClassificationService : ITflClassificationService
         HttpClient httpClient, 
         OllamaSettings settings, 
         IStationStatusSeverityRepository severityRepository, 
+        IOllamaStatusService statusService,
         ILogger<TflClassificationService> logger,
         TimeProvider timeProvider)
     {
         _httpClient = httpClient;
         _settings = settings;
         _severityRepository = severityRepository;
+        _statusService = statusService;
         _logger = logger;
         _timeProvider = timeProvider;
         _httpClient.BaseAddress = new Uri(_settings.BaseUrl);
@@ -36,10 +39,12 @@ public class TflClassificationService : ITflClassificationService
 
     public async Task<StationClassificationResult> ClassifyStationDisruptionAsync(string description)
     {
-        if (_cache.TryGetValue(description, out var cached)) return cached;
+        if (_cache.TryGetValue(description, out StationClassificationResult? cached)) return cached;
 
         try
         {
+            await _statusService.WaitUntilReadyAsync(CancellationToken.None);
+
             _cachedSeverities ??= (await _severityRepository.GetAllAsync()).ToArray();
             StationStatusSeverity? otherSeverity = _cachedSeverities.FirstOrDefault(s => s.Description.Equals("Other", StringComparison.OrdinalIgnoreCase));
             if (otherSeverity is null) throw new InvalidOperationException("Critical: 'Other' category missing.");

@@ -6,9 +6,22 @@ namespace TubeTracker.API.Services.Background;
 public class OllamaModelInitializer(
     IHttpClientFactory httpClientFactory,
     OllamaSettings settings,
+    IOllamaStatusService statusService,
     ILogger<OllamaModelInitializer> logger) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        try
+        {
+            await InitializeInternalAsync(stoppingToken);
+        }
+        finally
+        {
+            statusService.SetReady();
+        }
+    }
+
+    private async Task InitializeInternalAsync(CancellationToken stoppingToken)
     {
         using HttpClient client = httpClientFactory.CreateClient();
         client.BaseAddress = new Uri(settings.BaseUrl);
@@ -18,8 +31,8 @@ public class OllamaModelInitializer(
 
         bool isReady = false;
         int retries = 0;
-        // Poll until Ollama is responsive (max 60s)
-        while (!stoppingToken.IsCancellationRequested && retries < 60)
+        // Poll until Ollama is responsive (max 300s)
+        while (!stoppingToken.IsCancellationRequested && retries < 300)
         {
             try
             {
