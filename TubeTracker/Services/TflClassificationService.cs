@@ -55,22 +55,20 @@ public class TflClassificationService : ITflClassificationService
             string dateString = now.ToString("dddd dd MMMM yyyy HH:mm");
 
             string systemPrompt = $"""
-                                  You are a London Underground disruption classifier. 
-                                  Current Time: {dateString}
-                                  
                                   STATUS DEFINITIONS:
-                                  - "ActiveNow": The disruption is happening AT THIS EXACT MOMENT ({dateString}), or is a continuous closure (e.g., "until 2026").
-                                  - "StartingLater": The NEXT occurrence of this disruption starts in the future relative to {dateString}.
+                                  - "ActiveNow": The disruption is happening RIGHT NOW at {dateString}. This includes continuous closures (e.g., "until further notice", "until 2026") or if the current time falls within a specific stated window (e.g., it is 22:00 and the disruption is "from 21:00 to 05:00").
+                                  - "StartingLater": The NEXT scheduled occurrence of this disruption starts in the future relative to {dateString}. 
                                   
-                                  RULES:
-                                  1. RECURRING EVENTS: For "each evening after [Time]", if the time hasn't arrived TODAY yet, use "StartingLater" (even if yesterday's session is over).
-                                  2. Identify the NEXT start time. If it is in the future, use "StartingLater".
-                                  3. If it says "Until [Future Date]", it means it is a continuous closure happening now. Use "ActiveNow".
+                                  CRITICAL LOGIC:
+                                  1. TIMED CLOSURES: If a disruption happens "each evening" or "after [Time]", you MUST compare [Time] with the current time ({dateString}).
+                                  2. If the current time is BEFORE the start time today, it is "StartingLater".
+                                  3. If the current time is AFTER the start time but BEFORE the end time (usually next morning), it is "ActiveNow".
+                                  4. If the disruption is for specific dates (e.g., "Monday 22 and Tuesday 23") and today is Tuesday but before the evening start time, it is "StartingLater".
                                   
                                   EXAMPLES:
-                                  - "Mon 22 and Tue 23, after 23:10 each evening" (Current time: Tue 15:00) -> status: StartingLater (Next starts at 23:10 tonight).
-                                  - "Today after 21:40, queuing starts" (Current time 15:00) -> status: StartingLater
-                                  - "Station closed until spring 2026" -> status: ActiveNow
+                                  - "Mon 22 and Tue 23, after 23:10 each evening" (Current time: Tue 15:00) -> status: StartingLater.
+                                  - "Station closed until spring 2026" -> status: ActiveNow.
+                                  - "Today after 21:00, station closed" (Current time: 22:00) -> status: ActiveNow.
                                   
                                   OUTPUT INSTRUCTIONS:
                                   - Respond ONLY with a valid JSON object.
