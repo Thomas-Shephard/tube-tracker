@@ -56,31 +56,32 @@ public class TflClassificationService : ITflClassificationService
 
             string systemPrompt = $"""
                                   You are a London Underground disruption classifier. 
-                                  Current Date/Time: {dateString}
+                                  Current Time: {dateString}
                                   
-                                  LOGIC RULES:
-                                  1. Identify the START time/date mentioned. If it is later than {dateString}, is_future MUST be TRUE.
-                                  2. "After [Time] tonight" is FUTURE if that time has not arrived yet.
-                                  3. "Until [Date]" (even with years like 2026) is ACTIVE NOW. -> is_future: false.
-                                  4. "This station is closed until..." is active now. -> is_future: false.
+                                  STATUS DEFINITIONS:
+                                  - "ActiveNow": The disruption is happening AT THIS EXACT MOMENT ({dateString}), or is a continuous closure (e.g., "until 2026").
+                                  - "StartingLater": The NEXT occurrence of this disruption starts in the future relative to {dateString}.
                                   
-                                  REQUIRED THINKING PROCESS:
-                                  - Current Time: {dateString}
-                                  - Mentioned Start: [Identify it]
-                                  - Is Mentioned Start in the future? [Yes/No]
+                                  RULES:
+                                  1. RECURRING EVENTS: For "each evening after [Time]", if the time hasn't arrived TODAY yet, use "StartingLater" (even if yesterday's session is over).
+                                  2. Identify the NEXT start time. If it is in the future, use "StartingLater".
+                                  3. If it says "Until [Future Date]", it means it is a continuous closure happening now. Use "ActiveNow".
                                   
                                   EXAMPLES:
-                                  - "Tonight after 23:10, no service" (Current time 15:00) -> is_future: true
-                                  - "From 21:40 today, queuing in operation" (Current time 15:00) -> is_future: true
-                                  - "Station is closed until spring 2026" -> is_future: false
-                                  - "Until early March 2026, exit 1 will be closed" -> is_future: false
-                                  - "From Monday 20 Oct (Past) until Nov 2026, route closed" -> is_future: false
+                                  - "Mon 22 and Tue 23, after 23:10 each evening" (Current time: Tue 15:00) -> status: StartingLater (Next starts at 23:10 tonight).
+                                  - "Today after 21:40, queuing starts" (Current time 15:00) -> status: StartingLater
+                                  - "Station closed until spring 2026" -> status: ActiveNow
+                                  
+                                  OUTPUT INSTRUCTIONS:
+                                  - Respond ONLY with a valid JSON object.
+                                  - No preamble, no explanation outside the JSON.
+                                  - JSON MUST contain "category", "status", and "reasoning" keys.
                                   """;
 
             string userPrompt = $$"""
-                                Classify: "{{description}}"
-                                Categories: {{string.Join(", ", categories)}}
-                                Respond with: { "reasoning": "...", "category": "...", "is_future": bool }
+                                Classify this disruption: "{{description}}"
+                                Allowed Categories: {{string.Join(", ", categories)}}
+                                Expected JSON format: { "category": "string", "status": "ActiveNow|StartingLater", "reasoning": "string" }
                                 """;
 
             OllamaRequest request = new()
@@ -99,20 +100,44 @@ public class TflClassificationService : ITflClassificationService
             response.EnsureSuccessStatusCode();
             OllamaResponse? result = await response.Content.ReadFromJsonAsync<OllamaResponse>();
 
-            if (result?.Message?.Content is null) return new StationClassificationResult { CategoryId = otherSeverity.SeverityId };
+            if (string.IsNullOrWhiteSpace(result?.Message?.Content))
+            {
+                _logger.LogWarning("Ollama returned empty content for: {Description}", description);
+                return new StationClassificationResult { CategoryId = otherSeverity.SeverityId };
+            }
 
-            OllamaClassificationResult? classification = JsonSerializer.Deserialize<OllamaClassificationResult>(result.Message.Content);
-            if (classification is null) return new StationClassificationResult { CategoryId = otherSeverity.SeverityId };
+            try
+            {
+                using JsonDocument doc = JsonDocument.Parse(result.Message.Content);
+                JsonElement root = doc.RootElement;
+                
+                string? categoryName = root.TryGetProperty("category", out JsonElement categoryElement) ? categoryElement.GetString() : null;
+                string? status = root.TryGetProperty("status", out JsonElement statusElement) ? statusElement.GetString() : null;
+                
+                if (categoryName == null || status == null)
+                {
+                    _logger.LogWarning("Ollama JSON missing required fields. Content: {Content}", result.Message.Content);
+                }
 
-            int? matchedId = GetSeverityId(classification.Category);
-            var finalResult = new StationClassificationResult 
-            { 
-                CategoryId = matchedId ?? otherSeverity.SeverityId, 
-                IsFuture = classification.IsFuture
-            };
+                int? matchedId = categoryName != null ? GetSeverityId(categoryName) : null;
+                StationClassificationResult finalResult = new()
+                { 
+                    CategoryId = matchedId ?? otherSeverity.SeverityId, 
+                    IsFuture = status == "StartingLater"
+                };
 
-            _cache[description] = finalResult;
-            return finalResult;
+                _logger.LogInformation("Classified disruption: '{Description}' -> Category: {Category}, IsFuture: {IsFuture}, Reasoning: {Reasoning}",
+                    description, categoryName ?? "Unknown", finalResult.IsFuture, 
+                    root.TryGetProperty("reasoning", out JsonElement reasoning) ? reasoning.GetString() : "None");
+
+                _cache[description] = finalResult;
+                return finalResult;
+            }
+            catch (JsonException ex)
+            {
+                _logger.LogError(ex, "Failed to parse Ollama JSON: {Content}", result.Message.Content);
+                return new StationClassificationResult { CategoryId = otherSeverity.SeverityId };
+            }
         }
         catch (Exception ex)
         {
