@@ -112,6 +112,7 @@ public class Program
         builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
         builder.Services.AddHostedService<EmailBackgroundService>();
         builder.Services.AddHostedService<TubeStatusBackgroundService>();
+        builder.Services.AddHostedService<StationClassificationBackgroundService>();
         builder.Services.AddHostedService<TubeMetadataBackgroundService>();
         builder.Services.AddHostedService<NotificationBackgroundService>();
         builder.Services.AddHostedService<HistoryCleanupBackgroundService>();

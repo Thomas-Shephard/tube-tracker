@@ -1,6 +1,5 @@
 using TubeTracker.API.Models.Entities;
 using TubeTracker.API.Models.Tfl;
-using TubeTracker.API.Models.Classification;
 using TubeTracker.API.Repositories;
 using TubeTracker.API.Settings;
 
@@ -12,17 +11,23 @@ public class TubeStatusBackgroundService(
     StatusBackgroundSettings settings,
     ILogger<TubeStatusBackgroundService> logger) : BackgroundService
 {
-    private readonly TimeSpan _period = TimeSpan.FromMinutes(settings.RefreshIntervalMinutes);
+    private readonly TimeSpan _delay = TimeSpan.FromMinutes(settings.RefreshIntervalMinutes);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using PeriodicTimer timer = new(_period, timeProvider);
-
-        do
+        while (!stoppingToken.IsCancellationRequested)
         {
             await FetchAndStoreStatusesAsync();
+            
+            try
+            {
+                await Task.Delay(_delay, timeProvider, stoppingToken);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
+            }
         }
-        while (await timer.WaitForNextTickAsync(stoppingToken));
     }
 
     private async Task FetchAndStoreStatusesAsync()
@@ -36,16 +41,24 @@ public class TubeStatusBackgroundService(
             ILineStatusHistoryRepository lineHistoryRepository = scope.ServiceProvider.GetRequiredService<ILineStatusHistoryRepository>();
             IStationRepository stationRepository = scope.ServiceProvider.GetRequiredService<IStationRepository>();
             IStationStatusHistoryRepository stationHistoryRepository = scope.ServiceProvider.GetRequiredService<IStationStatusHistoryRepository>();
-            ITflClassificationService classificationService = scope.ServiceProvider.GetRequiredService<ITflClassificationService>();
             IStationStatusSeverityRepository severityRepository = scope.ServiceProvider.GetRequiredService<IStationStatusSeverityRepository>();
 
             // Pre-fetch severity IDs
-            IEnumerable<StationStatusSeverity> severities = await severityRepository.GetAllAsync();
+            IEnumerable<StationStatusSeverity> severities = (await severityRepository.GetAllAsync()).ToList();
             Dictionary<string, int> severityMap = severities.ToDictionary(s => s.Description, s => s.SeverityId, StringComparer.OrdinalIgnoreCase);
 
             if (!severityMap.TryGetValue("No Disruptions", out int goodServiceId))
             {
                 throw new InvalidOperationException("Critical configuration missing: 'No Disruptions' severity category not found in database.");
+            }
+            
+            if (!severityMap.TryGetValue("Pending Classification", out int pendingId))
+            {
+                logger.LogWarning("'Pending Classification' severity category not found. Falling back to 'Other'.");
+                if (!severityMap.TryGetValue("Other", out pendingId))
+                {
+                    throw new InvalidOperationException("Critical configuration missing: Neither 'Pending Classification' nor 'Other' severity category found.");
+                }
             }
 
             List<TflLine> tflLines = await tflService.GetLineStatusesAsync();
@@ -60,8 +73,8 @@ public class TubeStatusBackgroundService(
                 Dictionary<string, int> lineMap = dbLines.ToDictionary(l => l.TflId, l => l.LineId);
 
                 DateTime? lastLineReport = await lineHistoryRepository.GetLastReportTimeAsync();
-                DateTime lineThreshold = lastLineReport.HasValue && (DateTime.UtcNow - lastLineReport.Value).TotalMinutes < 30
-                    ? lastLineReport.Value.AddSeconds(-30)
+                DateTime lineThreshold = lastLineReport.HasValue && (DateTime.UtcNow - lastLineReport.Value).TotalMinutes < 60
+                    ? lastLineReport.Value.AddMinutes(-settings.RefreshIntervalMinutes * 2)
                     : DateTime.UtcNow.AddMinutes(-settings.DeduplicationThresholdMinutes);
 
                 foreach (TflLine tflLine in tflLines)
@@ -83,46 +96,54 @@ public class TubeStatusBackgroundService(
 
             logger.LogDebug("Fetched {Count} station disruptions from TFL", stationDisruptions.Count);
             DateTime? lastStationReport = await stationHistoryRepository.GetLastReportTimeAsync();
-            DateTime stationThreshold = lastStationReport.HasValue && (DateTime.UtcNow - lastStationReport.Value).TotalMinutes < 30
-                ? lastStationReport.Value.AddSeconds(-30)
+            DateTime stationThreshold = lastStationReport.HasValue && (DateTime.UtcNow - lastStationReport.Value).TotalMinutes < 60
+                ? lastStationReport.Value.AddMinutes(-settings.RefreshIntervalMinutes * 2)
                 : DateTime.UtcNow.AddMinutes(-settings.DeduplicationThresholdMinutes);
 
             IEnumerable<Station> dbStations = (await stationRepository.GetAllAsync()).ToList();
             if (dbStations.Any())
             {
                 Dictionary<string, int> stationMap = dbStations.ToDictionary(station => station.TflId, station => station.StationId);
-                Dictionary<int, List<string>> disruptionsByStation = new();
+                Dictionary<int, HashSet<string>> disruptionsByStation = new();
 
                 foreach (TflStationDisruption disruption in stationDisruptions)
                 {
                     string tflId = !string.IsNullOrEmpty(disruption.StationAtcoCode) ? disruption.StationAtcoCode : disruption.AtcoCode;
                     if (!string.IsNullOrEmpty(tflId) && stationMap.TryGetValue(tflId, out int stationId))
                     {
-                        if (!disruptionsByStation.TryGetValue(stationId, out List<string>? descriptions))
+                        if (!disruptionsByStation.TryGetValue(stationId, out HashSet<string>? descriptions))
                         {
                             descriptions = [];
                             disruptionsByStation[stationId] = descriptions;
                         }
-                        descriptions.Add(disruption.Description);
+                        
+                        string cleanDescription = disruption.Description.Trim();
+                        if (!string.IsNullOrEmpty(cleanDescription))
+                        {
+                            descriptions.Add(cleanDescription);
+                        }
                     }
                 }
 
-                List<(int StationId, string Description)> newDisruptionsToClassify = [];
+                // Batch fetch active history to avoid N+1 queries
+                IEnumerable<StationStatusHistory> activeHistories = await stationHistoryRepository.GetAllActiveHistoryAsync(stationThreshold);
+                var activeHistoryLookup = activeHistories
+                    .GroupBy(h => (h.StationId, h.StatusDescription))
+                    .ToDictionary(g => g.Key, g => g.First());
 
                 foreach (Station station in dbStations)
                 {
-                    if (disruptionsByStation.TryGetValue(station.StationId, out List<string>? descriptions))
+                    if (disruptionsByStation.TryGetValue(station.StationId, out HashSet<string>? descriptions))
                     {
                         foreach (string description in descriptions)
                         {
-                            StationStatusHistory? existing = await stationHistoryRepository.GetActiveHistoryAsync(station.StationId, description, stationThreshold);
-                            if (existing is not null)
+                            if (activeHistoryLookup.TryGetValue((station.StationId, description), out StationStatusHistory? existing))
                             {
                                 await stationHistoryRepository.UpdateLastReportedAsync(existing.HistoryId);
                             }
                             else
                             {
-                                newDisruptionsToClassify.Add((station.StationId, description));
+                                await stationHistoryRepository.InsertAsync(station.StationId, description, pendingId, false);
                             }
                         }
                     }
@@ -130,43 +151,13 @@ public class TubeStatusBackgroundService(
                     {
                         // No Issues
                         const string description = "No Disruptions";
-                        StationStatusHistory? existing = await stationHistoryRepository.GetActiveHistoryAsync(station.StationId, description, stationThreshold);
-                        if (existing is not null)
+                        if (activeHistoryLookup.TryGetValue((station.StationId, description), out StationStatusHistory? existing))
                         {
                             await stationHistoryRepository.UpdateLastReportedAsync(existing.HistoryId);
                         }
                         else
                         {
                             await stationHistoryRepository.InsertAsync(station.StationId, description, goodServiceId, false);
-                        }
-                    }
-                }
-
-                // Batch Classification
-                if (newDisruptionsToClassify.Count > 0)
-                {
-                    logger.LogInformation("Classifying {Count} new or re-evaluating station disruptions...", newDisruptionsToClassify.Count);
-                    
-                    // Deduplicate strings to avoid redundant LLM calls
-                    List<string> uniqueDescriptions = newDisruptionsToClassify.Select(x => x.Description).Distinct().ToList();
-                    
-                    // Group the pending disruptions by description for efficient lookup
-                    var pendingByDescription = newDisruptionsToClassify
-                        .GroupBy(x => x.Description)
-                        .ToDictionary(g => g.Key, g => g.Select(x => x.StationId).ToList());
-
-                    foreach (string desc in uniqueDescriptions)
-                    {
-                        // Classify one unique description
-                        StationClassificationResult result = await classificationService.ClassifyStationDisruptionAsync(desc);
-
-                        // Immediately update ALL stations that have this description
-                        if (pendingByDescription.TryGetValue(desc, out List<int>? stationIds))
-                        {
-                            foreach (int stationId in stationIds)
-                            {
-                                await stationHistoryRepository.InsertAsync(stationId, desc, result.CategoryId, result.IsFuture);
-                            }
                         }
                     }
                 }

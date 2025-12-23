@@ -88,6 +88,44 @@ public class StationStatusHistoryRepository(IDbConnection connection, StatusBack
         );
     }
 
+    public async Task<IEnumerable<StationStatusHistory>> GetAllActiveHistoryAsync(DateTime threshold)
+    {
+        const string query = """
+                             SELECT history_id AS HistoryId,
+                                    station_id AS StationId,
+                                    status_description AS StatusDescription,
+                                    status_severity_id AS StatusSeverityId,
+                                    is_future AS IsFuture,
+                                    first_reported_at AS FirstReportedAt,
+                                    last_reported_at AS LastReportedAt
+                             FROM StationStatusHistory 
+                             WHERE last_reported_at >= @Threshold
+                             """;
+        return await connection.QueryAsync<StationStatusHistory>(query, new { Threshold = threshold });
+    }
+
+    public async Task<IEnumerable<string>> GetDistinctDescriptionsBySeverityAsync(int severityId)
+    {
+        const string query = "SELECT DISTINCT status_description FROM StationStatusHistory WHERE status_severity_id = @SeverityId";
+        return await connection.QueryAsync<string>(query, new { SeverityId = severityId });
+    }
+
+    public async Task UpdateClassificationByDescriptionAsync(string description, int pendingSeverityId, int targetSeverityId, bool isFuture)
+    {
+        const string query = """
+                             UPDATE StationStatusHistory 
+                             SET status_severity_id = @TargetSeverityId, is_future = @IsFuture 
+                             WHERE status_description = @Description AND status_severity_id = @PendingSeverityId
+                             """;
+        await connection.ExecuteAsync(query, new
+        {
+            Description = description,
+            PendingSeverityId = pendingSeverityId,
+            TargetSeverityId = targetSeverityId,
+            IsFuture = isFuture
+        });
+    }
+
     public async Task<DateTime?> GetLastReportTimeAsync()
     {
         const string query = "SELECT MAX(last_reported_at) FROM StationStatusHistory";
