@@ -34,7 +34,7 @@ public class TflClassificationService : ITflClassificationService
         _logger = logger;
         _timeProvider = timeProvider;
         _httpClient.BaseAddress = new Uri(_settings.BaseUrl);
-        _httpClient.Timeout = TimeSpan.FromSeconds(30);
+        _httpClient.Timeout = TimeSpan.FromMinutes(5);
     }
 
     public async Task<StationClassificationResult> ClassifyStationDisruptionAsync(string description)
