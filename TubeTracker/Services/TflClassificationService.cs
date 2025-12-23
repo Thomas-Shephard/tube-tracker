@@ -60,7 +60,8 @@ public class TflClassificationService : ITflClassificationService
 
                              Rules for "is_future":
                              - "is_future" is ONLY true if the text specifies a future start date or time (e.g., "From Monday", "Starting at 22:00", "Between 25th and 27th").
-                             - If the text describes a current state (e.g., "is not available", "is closed", "is faulty"), "is_future" MUST be false.
+                             - If the text describes a current state (e.g., "is not available", "is closed", "is faulty") or states a condition that ends in the future (e.g., "Until May 2026, will be closed"), "is_future" MUST be false.
+                             - IMPORTANT: "Until [Date]" or "[Item] will be closed until [Date]" implies the disruption is active NOW. Set "is_future" to false.
                              - IMPORTANT: "Planned maintenance" or "Engineering work" that is happening NOW (e.g., "is not available due to planned maintenance") is NOT a future event. Set "is_future" to false.
 
                              Category Rules:
