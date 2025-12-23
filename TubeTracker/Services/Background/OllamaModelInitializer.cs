@@ -25,27 +25,30 @@ public class OllamaModelInitializer(
     {
         using HttpClient client = httpClientFactory.CreateClient();
         client.BaseAddress = new Uri(settings.BaseUrl);
-        client.Timeout = TimeSpan.FromMinutes(30);
+        client.Timeout = TimeSpan.FromHours(1); // Pulling large models takes time
 
-        logger.LogInformation("Waiting for Ollama to be ready at {Url}...", settings.BaseUrl);
+        logger.LogInformation("Waiting for Ollama to be responsive at {Url}...", settings.BaseUrl);
 
         bool isReady = false;
         int retries = 0;
-        // Poll until Ollama is responsive (max 300s)
         while (!stoppingToken.IsCancellationRequested && retries < 300)
         {
             try
             {
-                HttpResponseMessage response = await client.GetAsync("/", stoppingToken);
+                // Simple head request or empty get to check if the server is up
+                using var response = await client.GetAsync("/", stoppingToken);
                 if (response.IsSuccessStatusCode)
                 {
                     isReady = true;
                     break;
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Ignore connection errors while waiting
+                if (retries % 10 == 0) // Log every 10 seconds to avoid spam
+                {
+                    logger.LogInformation("Still waiting for Ollama... (Error: {Message})", ex.Message);
+                }
             }
             
             await Task.Delay(1000, stoppingToken);
@@ -60,12 +63,12 @@ public class OllamaModelInitializer(
 
         try
         {
-            logger.LogInformation("Ollama is ready. Checking model '{ModelName}'...", settings.ModelName);
+            logger.LogInformation("Ollama is responsive. Checking model '{ModelName}'...", settings.ModelName);
 
             bool modelExists = false;
             try
             {
-                OllamaModelListResponse? response = await client.GetFromJsonAsync<OllamaModelListResponse>("/api/tags", stoppingToken);
+                var response = await client.GetFromJsonAsync<OllamaModelListResponse>("/api/tags", stoppingToken);
                 if (response?.Models != null)
                 {
                     modelExists = response.Models.Any(m => 
@@ -84,19 +87,23 @@ public class OllamaModelInitializer(
                 return;
             }
 
-            logger.LogInformation("Model '{ModelName}' not found. Initiating pull...", settings.ModelName);
+            logger.LogInformation("Model '{ModelName}' not found. Initiating pull (this may take several minutes)...", settings.ModelName);
 
-            OllamaPullRequest pullRequest = new() { Name = settings.ModelName, Stream = false };
-            HttpResponseMessage pullResponse = await client.PostAsJsonAsync("/api/pull", pullRequest, stoppingToken);
-            
-            if (pullResponse.IsSuccessStatusCode)
+            OllamaPullRequest pullRequest = new() { Name = settings.ModelName, Stream = true };
+            using HttpResponseMessage pullResponse = await client.PostAsJsonAsync("/api/pull", pullRequest, stoppingToken);
+            pullResponse.EnsureSuccessStatusCode();
+
+            await using Stream stream = await pullResponse.Content.ReadAsStreamAsync(stoppingToken);
+            using StreamReader reader = new(stream);
+
+            while (!stoppingToken.IsCancellationRequested)
             {
+                string? line = await reader.ReadLineAsync(stoppingToken);
+                if (string.IsNullOrWhiteSpace(line)) continue;
+
+                if (!line.Contains("\"status\":\"success\"")) continue;
                 logger.LogInformation("Successfully pulled Ollama model '{ModelName}'.", settings.ModelName);
-            }
-            else
-            {
-                string error = await pullResponse.Content.ReadAsStringAsync(stoppingToken);
-                logger.LogError("Failed to pull Ollama model '{ModelName}'. Status: {Status}. Details: {Error}", settings.ModelName, pullResponse.StatusCode, error);
+                return;
             }
         }
         catch (Exception ex)
