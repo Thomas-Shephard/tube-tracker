@@ -49,47 +49,37 @@ public class TflClassificationService : ITflClassificationService
             DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
             string dateString = now.ToString("dddd dd MMMM yyyy HH:mm");
 
-            string prompt = $$"""
-                             Current Date/Time: {{dateString}}
+            string systemPrompt = $"""
+                                  You are a London Underground disruption classifier. 
+                                  Current Date: {dateString}
+                                  
+                                  RULES:
+                                  1. "is_future" MUST be FALSE if the disruption is ALREADY active.
+                                  2. "Until [Future Date]" means it is ALREADY happening. -> is_future: false.
+                                  3. "From [Past Date]" means it has already started. -> is_future: false.
+                                  4. "will be closed" + "Until" is a CURRENT state. -> is_future: false.
+                                  
+                                  EXAMPLES:
+                                  - "Until March 2026, exit 1 will be closed" -> is_future: false (Currently closed)
+                                  - "From 20 October until Nov 2026, escalators out" -> is_future: false (Already started)
+                                  - "From 22:00 tonight, station will close" -> is_future: true (Hasn't started)
+                                  
+                                  Output valid JSON only.
+                                  """;
 
-                             Classify this London Underground disruption.
-                             Input: "{{description}}"
-
-                             Allowed Categories:
-                             {{string.Join(", ", categories)}}
-
-                             CRITICAL RULES for "is_future":
-                             1. "is_future" MUST be false if the disruption is HAPPENING NOW.
-                             2. "is_future" MUST be false if the text says "is closed", "is unavailable", "is not available", or "is faulty".
-                             3. "Until [Date]" (e.g., "Until spring 2026") specifies when a CURRENT disruption ENDS. It does NOT mean it is a future disruption.
-                             4. "is_future" is ONLY true if there is a CLEAR future START date or time (e.g., "From Monday", "Starting at 22:00", "Between 25th and 27th") AND it has not started yet.
-                             5. If the text describes a current state that will continue until a future date, "is_future" MUST be false.
-
-                             Examples:
-                             - "From 22:00 tonight, the station will be closed" -> { "is_future": true, "reasoning": "Starts at 22:00 tonight, which is in the future." }
-                             - "Until early May 2026, the subway will be closed" -> { "is_future": false, "reasoning": "The closure is active now and ends in May 2026." }
-                             - "This station is closed until spring 2026" -> { "is_future": false, "reasoning": "The station is currently closed." }
-                             - "Station closed due to a fire alert" -> { "is_future": false, "reasoning": "Currently closed." }
-                             - "Lift unavailable until further notice" -> { "is_future": false, "reasoning": "Currently unavailable." }
-
-                             Category Rules:
-                             - "Closed" is for full station closures (e.g., "Station Closed").
-                             - "Partially Closed" for entrance/exit closures or partial restrictions.
-                             - "Accessibility Issue" for lift faults, step-free access unavailable.
-                             - "Information" for general advice or minor notes.
-                             - "No Disruptions" if the message explicitly says Good Service or no issues.
-                             - "Other" for anything else.
-                             
-                             Respond with JSON: { "reasoning": "string", "category": "string", "is_future": boolean }
-                             """;
+            string userPrompt = $$"""
+                                Classify: "{{description}}"
+                                Categories: {{string.Join(", ", categories)}}
+                                Respond with: { "reasoning": "...", "category": "...", "is_future": bool }
+                                """;
 
             OllamaRequest request = new()
             {
                 Model = _settings.ModelName,
                 Messages =
                 [
-                    new OllamaMessage { Role = "system", Content = "Output valid JSON only." },
-                    new OllamaMessage { Role = "user", Content = prompt }
+                    new OllamaMessage { Role = "system", Content = systemPrompt },
+                    new OllamaMessage { Role = "user", Content = userPrompt }
                 ],
                 Format = "json",
                 Stream = false
