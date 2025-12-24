@@ -17,7 +17,7 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto" id="nav-items">
-                    <!-- Nav items injected by app.js -->
+                    <!-- Nav items automatically injected by app.js -->
                 </ul>
             </div>
         </div>
@@ -118,7 +118,7 @@
                         const newToken = refreshData.token || refreshData.Token;
                         if (newToken) {
                             localStorage.setItem('token', newToken);
-                            updateNavbar(); // Update navbar with new name
+                            updateNavbar();
                         }
                     }
                 } else {
@@ -138,7 +138,7 @@
                 });
                 if (response.ok) {
                     localStorage.removeItem('token');
-                    window.location.href = '/';
+                    window.location.href = '/'; //Redirect to home page
                 } else {
                     msg.innerHTML = `<div class="alert alert-danger">Failed to delete account.</div>`;
                 }

@@ -1,6 +1,6 @@
 body {
     background-color: #fdfdfd;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 .navbar-brand {
@@ -10,9 +10,9 @@ body {
 
 .line-card {
     border-radius: 12px;
-    border-top: 1px solid rgba(0,0,0,0.05);
-    border-right: 1px solid rgba(0,0,0,0.05);
-    border-bottom: 1px solid rgba(0,0,0,0.05);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    border-right: 1px solid rgba(0, 0, 0, 0.05);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .card-title {
@@ -29,22 +29,42 @@ body {
     cursor: pointer;
 }
 
-/* Animations */
 @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @keyframes pulse-red {
-    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 37, 27, 0.7); }
-    70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(225, 37, 27, 0); }
-    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(225, 37, 27, 0); }
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(225, 37, 27, 0.7);
+    }
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 10px rgba(225, 37, 27, 0);
+    }
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(225, 37, 27, 0);
+    }
 }
 
 @keyframes skeleton-pulse {
-    0% { background-color: #f0f0f0; }
-    50% { background-color: #e0e0e0; }
-    100% { background-color: #f0f0f0; }
+    0% {
+        background-color: #f0f0f0;
+    }
+    50% {
+        background-color: #e0e0e0;
+    }
+    100% {
+        background-color: #f0f0f0;
+    }
 }
 
 .fade-in {
@@ -77,4 +97,113 @@ body {
 .border-dashed {
     border-style: dashed !important;
     border-width: 2px !important;
+}
+
+.hero-section {
+    background: linear-gradient(135deg, #0019a8 0%, #003399 100%);
+    color: white;
+    padding: 100px 0;
+    margin-bottom: 50px;
+}
+
+.line-card {
+    transition: transform 0.2s;
+    border: none;
+    border-left: 8px solid #ccc;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.line-card:hover {
+    transform: translateY(-5px);
+}
+
+.status-good {
+    border-left-color: #00782a;
+}
+
+.status-minor {
+    border-left-color: #ffce00;
+}
+
+.status-severe {
+    border-left-color: #e1251b;
+}
+
+.status-info {
+    border-left-color: #0dcaf0;
+}
+
+.status-good .bi-bell-fill {
+    color: #00782a;
+}
+
+.status-minor .bi-bell-fill {
+    color: #ffce00;
+}
+
+.status-severe .bi-bell-fill {
+    color: #e1251b;
+}
+
+.status-info .bi-bell-fill {
+    color: #0dcaf0;
+}
+
+.status-unknown {
+    border-left-color: #6c757d;
+}
+
+.status-unknown .bi-bell-fill {
+    color: #6c757d;
+}
+
+.line-card.flagged.status-good {
+    box-shadow: 0 0.5rem 1.5rem rgba(0, 120, 42, 0.25) !important;
+}
+
+.line-card.flagged.status-minor {
+    box-shadow: 0 0.5rem 1.5rem rgba(255, 206, 0, 0.3) !important;
+}
+
+.line-card.flagged.status-severe {
+    box-shadow: 0 0.5rem 1.5rem rgba(225, 37, 27, 0.25) !important;
+}
+
+.line-card.flagged.status-info {
+    box-shadow: 0 0.5rem 1.5rem rgba(13, 202, 240, 0.25) !important;
+}
+
+.cta-section {
+    background-color: #f8f9fa;
+    padding: 80px 0;
+    margin-top: 50px;
+}
+
+.feature-icon {
+    font-size: 2rem;
+    color: #0019a8;
+    margin-bottom: 1rem;
+}
+
+.auth-container {
+    max-width: 400px;
+    margin: 100px auto;
+}
+
+.tracking-card {
+    transition: all 0.2s;
+    border-radius: 12px;
+}
+
+.tracking-card.active {
+    border-color: #0d6efd;
+    background-color: #f8fbff;
+}
+
+.settings-panel {
+    font-size: 0.85rem;
+    background: rgba(0, 0, 0, 0.03);
+    border-radius: 8px;
+    padding: 12px;
 }
