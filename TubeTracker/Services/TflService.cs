@@ -5,13 +5,6 @@ using TubeTracker.API.Settings;
 
 namespace TubeTracker.API.Services;
 
-public interface ITflService
-{
-    Task<List<TflLine>> GetLineStatusesAsync();
-    Task<List<TflStationDisruption>> GetStationDisruptionsAsync();
-    Task<List<TflStopPoint>> GetStationsAsync();
-}
-
 public class TflService : ITflService
 {
     private readonly HttpClient _httpClient;

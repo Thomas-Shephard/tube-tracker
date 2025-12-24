@@ -1,3 +1,2 @@
--- Normalize LineStatusHistory
 ALTER TABLE LineStatusHistory DROP COLUMN status_description;
 ALTER TABLE LineStatusHistory ADD CONSTRAINT fk_line_status_severity FOREIGN KEY (status_severity) REFERENCES StatusSeverity(severity_level);

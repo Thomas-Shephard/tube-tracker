@@ -53,7 +53,7 @@ public class SecurityLockoutAttribute : Attribute, IAsyncActionFilter
 
         ActionExecutedContext executedContext = await next();
 
-        if (AlwaysRecord || (executedContext.Result is IStatusCodeActionResult sar && sar.StatusCode >= 400 && sar.StatusCode != 429))
+        if (AlwaysRecord || (executedContext.Result is IStatusCodeActionResult { StatusCode: >= 400 } sar && sar.StatusCode != 429))
         {
             logger?.LogInformation("SecurityLockout: Recording failure for {IP} (Email: {Email}) on {Path}. Status: {Status}", 
                 ipAddress, emailRequest?.Email ?? "N/A", context.HttpContext.Request.Path, (executedContext.Result as IStatusCodeActionResult)?.StatusCode);

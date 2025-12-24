@@ -19,7 +19,7 @@ VALUES ('Signal Failure', 2, 0),
        ('Lift Fault', 1, 1),
        ('Escalator Fault', 1, 1),
        ('Other', 1, 0),          -- Changed from 0 to 1 (Minor)
-       ('Good Service', 0, 0);   -- New category for "No Issues"
+       ('Good Service', 0, 0);
 
 ALTER TABLE StationStatusHistory
     ADD COLUMN status_severity_id INT DEFAULT 12, -- Default to 'Other'

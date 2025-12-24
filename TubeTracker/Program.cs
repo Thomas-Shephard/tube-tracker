@@ -56,7 +56,6 @@ public class Program
             }
         });
 
-        // Add standard web services
         builder.Services.AddControllers();
         builder.Services.AddOpenApi();
 
@@ -96,7 +95,7 @@ public class Program
         builder.Services.AddSingleton<ITokenService, TokenService>();
         builder.Services.AddSingleton<IOllamaStatusService, OllamaStatusService>();
 
-        // Conditional Email Service Registration
+        // Use mock email service if not in production
         bool useMockEmailService = bool.TryParse(builder.Configuration["USE_MOCK_EMAIL_SERVICE"], out bool useMock) && useMock;
         if (useMockEmailService)
         {
@@ -189,7 +188,7 @@ public class Program
             });
         });
 
-        if (app.Configuration.GetValue<bool>("RUN_MIGRATIONS", true))
+        if (app.Configuration.GetValue("RUN_MIGRATIONS", true))
         {
             DatabaseMigrator.ApplyMigrations(dbSettings.ConnectionString);
         }

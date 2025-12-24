@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using Microsoft.Extensions.Logging;
 using TubeTracker.API.Models.Entities;
 using TubeTracker.API.Repositories;
 using TubeTracker.API.Settings;

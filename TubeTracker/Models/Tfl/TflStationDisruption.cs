@@ -12,8 +12,7 @@ public class TflStationDisruption
 
     [JsonPropertyName("description")]
     public string Description { get; set; } = string.Empty;
-    
-    // Sometimes the ID is in stationAtcoCode
+
     [JsonPropertyName("stationAtcoCode")]
     public string StationAtcoCode { get; set; } = string.Empty;
 }

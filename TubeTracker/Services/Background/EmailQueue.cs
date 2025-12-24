@@ -1,5 +1,4 @@
 using System.Threading.Channels;
-using Microsoft.Extensions.Logging;
 
 namespace TubeTracker.API.Services.Background;
 

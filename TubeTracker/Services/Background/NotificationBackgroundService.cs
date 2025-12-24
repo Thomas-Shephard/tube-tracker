@@ -59,7 +59,7 @@ public class NotificationBackgroundService(IServiceScopeFactory serviceScopeFact
                 if (userLines.Count > 0)
                 {
                     body.Append("<b>Lines:</b><br/><ul>");
-                    // Group by LineName and DetailedDescription to handle merged TfL statuses
+                    // Group by LineName and DetailedDescription because sometimes TfL merges statuses
                     var groupedLines = userLines.GroupBy(n => new { n.LineName, n.DetailedDescription });
                     
                     foreach (var group in groupedLines)

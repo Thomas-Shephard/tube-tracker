@@ -25,9 +25,9 @@ public class OllamaModelInitializer(
     {
         using HttpClient client = httpClientFactory.CreateClient();
         client.BaseAddress = new Uri(settings.BaseUrl);
-        client.Timeout = TimeSpan.FromHours(1); // Pulling large models takes time
+        client.Timeout = TimeSpan.FromHours(1);
 
-        logger.LogInformation("Waiting for Ollama to be responsive at {Url}...", settings.BaseUrl);
+        logger.LogInformation("Waiting for Ollama to be responsive at {Url}", settings.BaseUrl);
 
         bool isReady = false;
         int retries = 0;
@@ -35,8 +35,7 @@ public class OllamaModelInitializer(
         {
             try
             {
-                // Simple head request or empty get to check if the server is up
-                using var response = await client.GetAsync("/", stoppingToken);
+                using HttpResponseMessage response = await client.GetAsync("/", stoppingToken);
                 if (response.IsSuccessStatusCode)
                 {
                     isReady = true;
@@ -45,9 +44,9 @@ public class OllamaModelInitializer(
             }
             catch (Exception ex)
             {
-                if (retries % 10 == 0) // Log every 10 seconds to avoid spam
+                if (retries % 10 == 0)
                 {
-                    logger.LogInformation("Still waiting for Ollama... (Error: {Message})", ex.Message);
+                    logger.LogInformation("Waiting for Ollama... (Error: {Message})", ex.Message);
                 }
             }
             
@@ -68,8 +67,8 @@ public class OllamaModelInitializer(
             bool modelExists = false;
             try
             {
-                var response = await client.GetFromJsonAsync<OllamaModelListResponse>("/api/tags", stoppingToken);
-                if (response?.Models != null)
+                OllamaModelListResponse? response = await client.GetFromJsonAsync<OllamaModelListResponse>("/api/tags", stoppingToken);
+                if (response?.Models is not null)
                 {
                     modelExists = response.Models.Any(m => 
                         m.Name.Equals(settings.ModelName, StringComparison.OrdinalIgnoreCase) || 

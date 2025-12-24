@@ -43,7 +43,7 @@ public class TubeStatusBackgroundService(
             IStationStatusHistoryRepository stationHistoryRepository = scope.ServiceProvider.GetRequiredService<IStationStatusHistoryRepository>();
             IStationStatusSeverityRepository severityRepository = scope.ServiceProvider.GetRequiredService<IStationStatusSeverityRepository>();
 
-            // Pre-fetch severity IDs
+            // Fetch severity IDs
             IEnumerable<StationStatusSeverity> severities = (await severityRepository.GetAllAsync()).ToList();
             Dictionary<string, int> severityMap = severities.ToDictionary(s => s.Description, s => s.SeverityId, StringComparer.OrdinalIgnoreCase);
 
@@ -125,7 +125,7 @@ public class TubeStatusBackgroundService(
                     }
                 }
 
-                // Batch fetch active history to avoid N+1 queries
+                // Batch fetch active history to improve efficiency
                 IEnumerable<StationStatusHistory> activeHistories = await stationHistoryRepository.GetAllActiveHistoryAsync(stationThreshold);
                 var activeHistoryLookup = activeHistories
                     .GroupBy(h => (h.StationId, h.StatusDescription))

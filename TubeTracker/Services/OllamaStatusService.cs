@@ -1,11 +1,5 @@
 namespace TubeTracker.API.Services;
 
-public interface IOllamaStatusService
-{
-    Task WaitUntilReadyAsync(CancellationToken cancellationToken);
-    void SetReady();
-}
-
 public class OllamaStatusService : IOllamaStatusService
 {
     private readonly TaskCompletionSource _readyTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
