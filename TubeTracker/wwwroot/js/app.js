@@ -102,11 +102,10 @@ function formatSeverity(activeStatuses) {
     );
 
     const descriptions = [...new Set(sorted.map(s => s.severity.description))];
-    
-    // Create detailed status objects for modal
+
     const details = sorted.map(s => ({
         description: s.severity.description,
-        reason: s.statusDescription || s.reason || "", // Handle both API property names
+        reason: s.statusDescription || s.reason || "",
         urgency: s.severity.urgency
     }));
 
@@ -131,7 +130,7 @@ function validatePassword(password) {
     
     return {
         isValid: minLength && hasUpper && hasLower && hasDigit,
-        score: count, // 0 to 4
+        score: count,
         requirements: { minLength, hasUpper, hasLower, hasDigit }
     };
 }
@@ -156,18 +155,16 @@ function updateTimeAgo(elementId, timestamp) {
     const el = document.getElementById(elementId);
     if (!el || !timestamp) return;
 
-    // Don't overwrite refreshing state
     if (el.querySelector('.spinner-border')) return;
 
     const seconds = Math.floor((new Date() - timestamp) / 1000);
     
-    // If it's been more than 5 minutes (300s), show unknown status
+    // If it's been more than 300s, show unknown status
     if (seconds >= 300) {
         setStatusUnavailable(elementId);
         return;
     }
 
-    // Don't overwrite error messages
     if (el.querySelector('.text-danger')) return;
 
     let text = "";
@@ -176,7 +173,6 @@ function updateTimeAgo(elementId, timestamp) {
     else if (seconds < 120) text = "1 minute ago";
     else text = `${Math.floor(seconds / 60)} minutes ago`;
 
-    // Special state for nearing refresh (assuming 60s interval)
     if (seconds >= 55) {
         el.innerHTML = `<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span>Refreshing...</span>`;
     } else {
@@ -192,14 +188,13 @@ function markStatusUnknown(containerId) {
     cards.forEach(card => {
         card.classList.remove('status-good', 'status-minor', 'status-severe', 'flagged');
         card.classList.add('status-unknown');
-        // Remove click interactivity
+
         card.removeAttribute('onclick');
         card.removeAttribute('onkeydown');
         card.removeAttribute('tabindex');
         card.removeAttribute('role');
         card.style.cursor = 'default';
-        
-        // Remove bell icon
+
         const bell = card.querySelector('.bi-bell-fill');
         if (bell) bell.remove();
         
@@ -207,7 +202,7 @@ function markStatusUnknown(containerId) {
         if (badge) {
             badge.className = 'badge bg-secondary';
             badge.innerText = 'Unknown';
-            // Remove any info icon if present
+
             const icon = badge.querySelector('.bi-info-circle-fill');
             if (icon) icon.remove();
         }
@@ -262,16 +257,15 @@ async function loadTubeStatus() {
         if (response.ok) {
             let lines = await response.json();
             
-            // Cache count for next load
+            // Cache count for next load to put in skeleton
             localStorage.setItem('total-lines-count', lines.length);
 
             lastUpdateLineTime = new Date();
-            // Clear any error state before updating time
+
             resultElement.innerHTML = ''; 
             updateTimeAgo('api-result', lastUpdateLineTime);
             listContainer.innerHTML = '';
 
-            // Handle both "statuses" and "Statuses" from API
             lines = lines.map(line => {
                 const activeStatuses = line.statuses || line.Statuses || [];
                 return {
@@ -342,12 +336,12 @@ async function loadTrackedStatus() {
         if (response.ok) {
             const data = await response.json();
             
-            // Cache the counts for next time
+            // Cache the counts for the skeleton
             localStorage.setItem('tracked-lines-count', data.lines.length);
             localStorage.setItem('tracked-stations-count', data.stations.length);
 
             lastUpdateTrackedTime = new Date();
-            // Clear any error state before updating time
+
             resultElement.innerHTML = '';
             updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
 
@@ -374,7 +368,7 @@ async function loadTrackedStatus() {
             const sortedLines = data.lines.map(line => {
                 const activeStatuses = line.statuses || line.Statuses || [];
                 const maxUrgency = activeStatuses.length ? Math.max(...activeStatuses.map(s => s.severity.urgency)) : 0;
-                // MinUrgency defaults to 2 (Severe) if not set, or we can use the value from the object
+
                 const isFlagged = maxUrgency >= (line.minUrgency ?? 2) && maxUrgency > 0;
                 return { ...line, activeStatuses, isFlagged, maxUrgency };
             }).sort((a, b) => {
@@ -422,8 +416,7 @@ async function loadTrackedStatus() {
             sortedStations.forEach((station, index) => {
                 const activeStatuses = station.activeStatuses;
                 const hasIssues = activeStatuses.length > 0;
-                
-                // Manually build details for modal
+
                 const details = activeStatuses.map(s => ({
                     description: s.severity.description,
                     reason: s.statusDescription,
@@ -441,7 +434,6 @@ async function loadTrackedStatus() {
                 let statusClass = "status-good";
 
                 if (hasIssues) {
-                    // Check max urgency among issues
                     const maxUrgency = Math.max(...activeStatuses.map(s => s.severity.urgency));
                     const classes = getStatusColorClasses(maxUrgency, true);
                     badgeClass = classes.badge;
@@ -472,7 +464,7 @@ function showStatusDetail(name, details, isStation = false) {
     if (modalLabel && modalBody) {
         modalLabel.innerText = `${name} - Service Details`;
         
-        // Group by reason to handle merged TfL descriptions
+        // Group by reason to handle merged TfL descriptions (sometimes TfL gives identical descreiptions multiple times)
         const grouped = details.reduce((acc, d) => {
             const key = d.reason || "no-reason";
             if (!acc[key]) acc[key] = { reason: d.reason, statuses: [] };
@@ -506,19 +498,16 @@ function showStatusDetail(name, details, isStation = false) {
 function createCardElement(name, severity, badgeClass, statusClass, reasons, isFlagged = false, details = null, hasDetails = false, isStation = false) {
     const col = document.createElement('div');
     col.className = 'col-md-6 col-lg-4';
-    
-    // Outer Card
+
     const card = document.createElement('div');
     card.className = `card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'flagged' : ''}`;
-    
-    // Click/Interaction Logic
+
     if (details && (details.length > 2 || hasDetails)) {
         card.style.cursor = 'pointer';
         card.setAttribute('role', 'button');
         card.setAttribute('tabindex', '0');
         
         const clickHandler = (e) => {
-            // Prevent triggering if clicking a link/button inside (though there are none currently)
             showStatusDetail(name, details, isStation);
         };
         
@@ -531,15 +520,12 @@ function createCardElement(name, severity, badgeClass, statusClass, reasons, isF
         });
     }
 
-    // Card Body
     const body = document.createElement('div');
     body.className = 'card-body';
 
-    // Header Row
     const header = document.createElement('div');
     header.className = 'd-flex justify-content-between align-items-start mb-2';
 
-    // Title
     const title = document.createElement('h5');
     title.className = 'card-title fw-bold mb-0';
     if (isFlagged) {
@@ -549,7 +535,6 @@ function createCardElement(name, severity, badgeClass, statusClass, reasons, isF
     }
     title.appendChild(document.createTextNode(name));
 
-    // Badge
     const badge = document.createElement('span');
     badge.className = `badge ${badgeClass}`;
     badge.textContent = severity;
@@ -563,7 +548,6 @@ function createCardElement(name, severity, badgeClass, statusClass, reasons, isF
     header.appendChild(badge);
     body.appendChild(header);
 
-    // Reasons
     reasons.forEach(r => {
         const p = document.createElement('p');
         p.className = 'card-text small text-muted mt-2 mb-0';
@@ -577,7 +561,6 @@ function createCardElement(name, severity, badgeClass, statusClass, reasons, isF
     return col;
 }
 
-// Global scope for onclick
 window.logout = logout;
 window.isLoggedIn = isLoggedIn;
 window.isVerified = isVerified;
@@ -585,7 +568,6 @@ window.getAuthHeader = getAuthHeader;
 window.updateNavbar = updateNavbar;
 window.showStatusDetail = showStatusDetail;
 
-// Tracking Page Logic
 let allLines = [];
 let trackedLines = [];
 let allStations = [];
@@ -903,7 +885,6 @@ function showVerifyAlert(msg, type) {
     }
 }
 
-// Expose to window
 window.verifyAccount = verifyAccount;
 window.resendCode = resendCode;
 window.toggleLine = toggleLine;
@@ -915,7 +896,7 @@ async function refreshTokenIfOld() {
     const payload = getDecodedToken();
     if (!payload || !payload.iat) return;
 
-    // Refresh if the token is older than 3 days
+    // Refresh if the token is older than 3 days, this keeps the user permanently logged in
     const threeDaysInSeconds = 3 * 24 * 60 * 60;
     const now = Math.floor(Date.now() / 1000);
     
@@ -946,7 +927,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (isLoggedIn()) {
         refreshTokenIfOld();
 
-        // Handle Tracking Page
         if (document.getElementById('tracking-content')) {
             if (!isVerified()) {
                 document.getElementById('tracking-content').classList.add('d-none');
@@ -959,7 +939,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     searchInput.addEventListener('input', renderStations);
                 }
 
-                // Handle deep linking to tabs
                 const hash = window.location.hash;
                 if (hash === '#stations') {
                     const stationsTab = document.getElementById('stations-tab');
@@ -971,13 +950,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Handle Verification Banner
         const banner = document.getElementById('verification-banner');
         if (banner && !isVerified()) {
             banner.classList.remove('d-none');
         }
 
-        // Handle Dashboard
         const trackedStatus = document.getElementById('tracked-status');
         if (trackedStatus) {
             trackedStatus.classList.remove('d-none');
@@ -989,8 +966,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (guestHero) guestHero.classList.remove('d-none');
         const guestFeatures = document.getElementById('guest-features');
         if (guestFeatures) guestFeatures.classList.remove('d-none');
-        
-        // Redirect to login if on tracking page and not logged in
+
         if (document.getElementById('tracking-content')) {
             window.location.href = '/login.html';
         }
@@ -1006,8 +982,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const refreshingHtml = `<span class="text-primary"><span class="spinner-border spinner-border-sm me-1"></span>Refreshing...</span>`;
         const resEl = document.getElementById('api-result');
         const trackedResEl = document.getElementById('tracked-api-result');
-        
-        // Always show refreshing status when attempting an update
+
         if (resEl) resEl.innerHTML = refreshingHtml;
         if (trackedResEl && isLoggedIn() && isVerified()) trackedResEl.innerHTML = refreshingHtml;
 
@@ -1023,7 +998,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const errorHtml = `<span class="text-danger" style="cursor: pointer;" onclick="forceRefresh()" title="Click to retry"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-exclamation-circle-fill me-1" viewBox="0 0 16 16" style="vertical-align: -0.125em;"><path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/></svg>Failed to update live statuses.</span>`;
 
             if (r1 && r2) {
-                // Success
                 retryDelay = 5000;
                 isRetrying = false;
                 
@@ -1036,7 +1010,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
                 }
             } else {
-                // Failure
                 const checkStale = (ts) => ts && ((Date.now() - ts) / 1000 >= 300);
 
                 if (!r1 && resEl) {
@@ -1062,17 +1035,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (document.hidden) return;
 
         isRetrying = true;
-        stopPolling(); // Stop standard polling to avoid conflicts
+        stopPolling();
         
         console.log(`Update failed. Retrying in ${retryDelay/1000}s...`);
         retryTimeout = setTimeout(() => {
             refreshData();
         }, retryDelay);
         
-        // Increase delay for next time, capped at max
+        // Increase delay for next time, but never more than 60s
         retryDelay = Math.min(retryDelay * 2, maxRetryDelay);
-        
-        // Restart time-ago updates so the "Failed to update" message or stale time can still be seen/managed
+
         if (!timeAgoInterval) {
              timeAgoInterval = setInterval(() => {
                 updateTimeAgo('api-result', lastUpdateLineTime);
@@ -1086,10 +1058,9 @@ document.addEventListener('DOMContentLoaded', () => {
         isRetrying = false;
         retryDelay = 5000;
 
-        // Calculate staleness to avoid aggressive refreshing on tab focus
         const now = new Date();
         let lastUpdate = lastUpdateLineTime;
-        // Use the oldest timestamp to ensure we refresh if EITHER is stale
+
         if (lastUpdateLineTime && lastUpdateTrackedTime) {
             lastUpdate = lastUpdateLineTime < lastUpdateTrackedTime ? lastUpdateLineTime : lastUpdateTrackedTime;
         } else if (!lastUpdateLineTime && lastUpdateTrackedTime) {
@@ -1104,7 +1075,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Start UI timer immediately
         timeAgoInterval = setInterval(() => {
             updateTimeAgo('api-result', lastUpdateLineTime);
             updateTimeAgo('tracked-api-result', lastUpdateTrackedTime);
@@ -1127,7 +1097,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (timeAgoInterval) clearInterval(timeAgoInterval);
         if (retryTimeout) clearTimeout(retryTimeout);
         pollingInterval = null;
-        timeAgoInterval = null; // Ensure we clear this references
+        timeAgoInterval = null;
     }
 
     function forceRefresh() {
@@ -1150,6 +1120,5 @@ document.addEventListener('DOMContentLoaded', () => {
         else startPolling();
     });
 
-    // Start initial polling
     startPolling();
 });
