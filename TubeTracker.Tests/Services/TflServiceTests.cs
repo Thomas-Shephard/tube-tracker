@@ -2,7 +2,6 @@ using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Moq;
-using NUnit.Framework;
 using RichardSzalay.MockHttp;
 using TubeTracker.API.Models.Tfl;
 using TubeTracker.API.Services;
@@ -10,7 +9,6 @@ using TubeTracker.API.Settings;
 
 namespace TubeTracker.Tests.Services;
 
-[TestFixture]
 public class TflServiceTests
 {
     private MockHttpMessageHandler _mockHttp;
@@ -25,7 +23,7 @@ public class TflServiceTests
         _loggerMock = new Mock<ILogger<TflService>>();
         _settings = new TflSettings { AppKey = "test-key" };
 
-        var httpClient = _mockHttp.ToHttpClient();
+        HttpClient httpClient = _mockHttp.ToHttpClient();
         httpClient.BaseAddress = new Uri("https://api.tfl.gov.uk");
 
         _service = new TflService(httpClient, _settings, _loggerMock.Object);
@@ -40,17 +38,17 @@ public class TflServiceTests
     [Test]
     public async Task GetLineStatusesAsync_ReturnsLines_WhenApiSuccess()
     {
-        var lines = new List<TflLine>
-        {
-            new TflLine { Id = "bakerloo", Name = "Bakerloo" },
-            new TflLine { Id = "victoria", Name = "Victoria" }
-        };
+        List<TflLine> lines =
+        [
+            new() { Id = "bakerloo", Name = "Bakerloo" },
+            new() { Id = "victoria", Name = "Victoria" }
+        ];
         string json = JsonSerializer.Serialize(lines);
 
         _mockHttp.When("https://api.tfl.gov.uk/*")
             .Respond("application/json", json);
 
-        var result = await _service.GetLineStatusesAsync();
+        List<TflLine> result = await _service.GetLineStatusesAsync();
 
         Assert.That(result, Has.Count.EqualTo(2));
         Assert.That(result[0].Name, Is.EqualTo("Bakerloo"));
@@ -62,10 +60,10 @@ public class TflServiceTests
         _mockHttp.When("https://api.tfl.gov.uk/*")
             .Respond(HttpStatusCode.InternalServerError);
 
-        var result = await _service.GetLineStatusesAsync();
+        List<TflLine> result = await _service.GetLineStatusesAsync();
 
         Assert.That(result, Is.Empty);
-        // Verify error logging
+
         _loggerMock.Verify(l => l.Log(
             LogLevel.Error,
             It.IsAny<EventId>(),
@@ -78,16 +76,13 @@ public class TflServiceTests
     [Test]
     public async Task GetStationsAsync_ParsesJsonArray()
     {
-        var stations = new List<TflStopPoint>
-        {
-            new TflStopPoint { Id = "1", CommonName = "Station A" }
-        };
+        List<TflStopPoint> stations = [new() { Id = "1", CommonName = "Station A" }];
         string json = JsonSerializer.Serialize(stations);
 
         _mockHttp.When("https://api.tfl.gov.uk/*")
             .Respond("application/json", json);
 
-        var result = await _service.GetStationsAsync();
+        List<TflStopPoint> result = await _service.GetStationsAsync();
 
         Assert.That(result, Has.Count.EqualTo(1));
         Assert.That(result[0].CommonName, Is.EqualTo("Station A"));
@@ -96,15 +91,13 @@ public class TflServiceTests
     [Test]
     public async Task GetStationsAsync_ParsesWrappedJsonObject()
     {
-        // Test the fallback deserialization logic
-        // Using "id" instead of "naptanId" as per the actual model
         var wrapper = new { stopPoints = new[] { new { id = "2", commonName = "Station B" } } };
         string json = JsonSerializer.Serialize(wrapper);
 
         _mockHttp.When("https://api.tfl.gov.uk/*")
             .Respond("application/json", json);
 
-        var result = await _service.GetStationsAsync();
+        List<TflStopPoint> result = await _service.GetStationsAsync();
 
         Assert.That(result, Has.Count.EqualTo(1));
         Assert.That(result[0].CommonName, Is.EqualTo("Station B"));

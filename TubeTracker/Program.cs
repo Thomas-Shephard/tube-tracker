@@ -189,7 +189,10 @@ public class Program
             });
         });
 
-        DatabaseMigrator.ApplyMigrations(dbSettings.ConnectionString);
+        if (app.Configuration.GetValue<bool>("RUN_MIGRATIONS", true))
+        {
+            DatabaseMigrator.ApplyMigrations(dbSettings.ConnectionString);
+        }
 
         app.MapOpenApi();
         app.MapScalarApiReference("/scalar");

@@ -1,3 +1,4 @@
+using System.Data;
 using System.Net;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -8,7 +9,7 @@ using TubeTracker.API.Services;
 
 namespace TubeTracker.Tests.Integration;
 
-public class BasicIntegrationTests
+public class IntegrationTests
 {
     private WebApplicationFactory<Program> _factory;
     private HttpClient _client;
@@ -25,6 +26,8 @@ public class BasicIntegrationTests
                 builder.UseSetting("DB_NAME", "tubetracker_test");
                 builder.UseSetting("DB_USER", "test");
                 builder.UseSetting("DB_PASSWORD", "test");
+
+                builder.UseSetting("RUN_MIGRATIONS", "false");
                 
                 builder.UseSetting("JWT_SECRET", "SUPER_SECRET_KEY_FOR_TESTING_123456789");
                 builder.UseSetting("JWT_ISSUER", "TubeTrackerTest");
@@ -54,9 +57,8 @@ public class BasicIntegrationTests
                     services.RemoveAll<IEmailService>();
                     services.AddSingleton(new Mock<IEmailService>().Object);
                     
-                    // Replace IDbConnection with a mock to prevent real connection attempts
-                    services.RemoveAll<System.Data.IDbConnection>();
-                    var mockDb = new Mock<System.Data.IDbConnection>();
+                    services.RemoveAll<IDbConnection>();
+                    Mock<IDbConnection> mockDb = new();
                     mockDb.Setup(d => d.Open());
                     services.AddScoped(_ => mockDb.Object);
                 });
@@ -75,41 +77,25 @@ public class BasicIntegrationTests
     [Test]
     public async Task Get_HealthEndpoint_ReturnsOkOrRedirect()
     {
-        // Act
-        // We hit the root. Since it serves static files (index.html), it should return OK.
-        var response = await _client.GetAsync("/");
+        HttpResponseMessage response = await _client.GetAsync("/");
 
-        // Assert
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        var content = await response.Content.ReadAsStringAsync();
-        Assert.That(content, Does.Contain("<!DOCTYPE html>")); // Assumes index.html has this
+        string content = await response.Content.ReadAsStringAsync();
+        Assert.That(content, Does.Contain("<!DOCTYPE html>"));
     }
 
     [Test]
     public async Task Get_LinesEndpoint_ReturnsSuccess()
     {
-        // Act
-        // This endpoint might fail if the DB isn't reachable, but if it returns 200 or 500,
-        // it proves the routing works. Ideally, we want 200.
-        // If it returns 200, it means our DI for Repositories is working.
-        var response = await _client.GetAsync("/api/lines");
+        HttpResponseMessage response = await _client.GetAsync("/api/lines");
 
-        // Assert
-        // We accept InternalServerError because the test environment might not have the DB connection string set up correctly
-        // but we mainly want to ensure it's not 404.
         Assert.That(response.StatusCode, Is.Not.EqualTo(HttpStatusCode.NotFound));
     }
 
     [Test]
     public async Task Swagger_Endpoint_ReturnsOk()
     {
-        // Act
-        var response = await _client.GetAsync("/scalar/v1");
-
-        // Assert
-        // Scalar/Swagger should be available in development.
-        // Note: MapOpenApi is used, typically at /openapi/v1.json
-        var openApiResponse = await _client.GetAsync("/openapi/v1.json");
+        HttpResponseMessage openApiResponse = await _client.GetAsync("/openapi/v1.json");
         
         Assert.That(openApiResponse.StatusCode, Is.EqualTo(HttpStatusCode.OK));
     }

@@ -1,15 +1,12 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
 using Microsoft.Extensions.Logging;
 using Moq;
-using NUnit.Framework;
 using TubeTracker.API.Models.Entities;
 using TubeTracker.API.Services;
 using TubeTracker.API.Settings;
 
 namespace TubeTracker.Tests.Services;
 
-[TestFixture]
 public class TokenServiceTests
 {
     private Mock<ILogger<TokenService>> _loggerMock;
@@ -22,7 +19,7 @@ public class TokenServiceTests
         _loggerMock = new Mock<ILogger<TokenService>>();
         _settings = new JwtSettings
         {
-            Secret = "SuperSecretKey12345678901234567890", // Must be >= 32 bytes for HMACSHA256 usually, or at least long enough
+            Secret = "SuperSecretKey12345678901234567890",
             Issuer = "TubeTrackerIssuer",
             Audience = "TubeTrackerAudience"
         };
@@ -32,7 +29,7 @@ public class TokenServiceTests
     [Test]
     public void GenerateToken_ReturnsValidJwt()
     {
-        var user = new User
+        User user = new()
         {
             UserId = 123,
             Email = "test@example.com",
@@ -46,14 +43,14 @@ public class TokenServiceTests
         Assert.That(token, Is.Not.Null);
         Assert.That(token, Is.Not.Empty);
 
-        var handler = new JwtSecurityTokenHandler();
+        JwtSecurityTokenHandler handler = new();
         Assert.That(handler.CanReadToken(token), Is.True);
     }
 
     [Test]
     public void GenerateToken_ContainsCorrectClaims()
     {
-        var user = new User
+        User user = new()
         {
             UserId = 456,
             Email = "claims@example.com",
@@ -63,22 +60,25 @@ public class TokenServiceTests
         };
 
         string token = _service.GenerateToken(user);
-        var handler = new JwtSecurityTokenHandler();
-        var jwtToken = handler.ReadJwtToken(token);
+        JwtSecurityTokenHandler handler = new();
+        JwtSecurityToken? jwtToken = handler.ReadJwtToken(token);
 
-        Assert.That(jwtToken.Issuer, Is.EqualTo(_settings.Issuer));
-        Assert.That(jwtToken.Audiences.First(), Is.EqualTo(_settings.Audience));
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(jwtToken.Issuer, Is.EqualTo(_settings.Issuer));
+            Assert.That(jwtToken.Audiences.First(), Is.EqualTo(_settings.Audience));
+        }
 
-        var sub = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
+        string? sub = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
         Assert.That(sub, Is.EqualTo("456"));
 
-        var email = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Email)?.Value;
+        string? email = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Email)?.Value;
         Assert.That(email, Is.EqualTo("claims@example.com"));
 
-        var isVerified = jwtToken.Claims.FirstOrDefault(c => c.Type == "is_verified")?.Value;
+        string? isVerified = jwtToken.Claims.FirstOrDefault(c => c.Type == "is_verified")?.Value;
         Assert.That(isVerified, Is.EqualTo("true"));
         
-        var jti = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti)?.Value;
+        string? jti = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti)?.Value;
         Assert.That(jti, Is.Not.Null);
     }
 }
