@@ -1,3 +1,13 @@
+function escapeHtml(text) {
+    if (!text) return text;
+    return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
 function isLoggedIn() {
     return localStorage.getItem('token') !== null;
 }
@@ -283,10 +293,7 @@ async function loadTubeStatus() {
                 const badgeClass = classes.badge;
                 const statusClass = classes.card;
 
-                const cardHtml = createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, false, details, hasDetails, false);
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = cardHtml;
-                const cardEl = tempDiv.firstElementChild;
+                const cardEl = createCardElement(line.name, severityDescription, badgeClass, statusClass, reasons, false, details, hasDetails, false);
                 cardEl.classList.add('fade-in');
                 cardEl.style.animationDelay = `${index * 0.05}s`;
                 listContainer.appendChild(cardEl);
@@ -385,10 +392,7 @@ async function loadTrackedStatus() {
                 const badgeClass = classes.badge;
                 const statusClass = classes.card;
                 
-                const cardHtml = createCardHtml(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged, details, hasDetails, false);
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = cardHtml;
-                const cardEl = tempDiv.firstElementChild;
+                const cardEl = createCardElement(line.name, severityDescription, badgeClass, statusClass, reasons, line.isFlagged, details, hasDetails, false);
                 cardEl.classList.add('fade-in');
                 cardEl.style.animationDelay = `${index * 0.05}s`;
                 lineList.appendChild(cardEl);
@@ -444,10 +448,7 @@ async function loadTrackedStatus() {
                     statusClass = classes.card;
                 }
 
-                const cardHtml = createCardHtml(station.commonName, badgeText, badgeClass, statusClass, [], station.isFlagged, details, hasDetails, true);
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = cardHtml;
-                const cardEl = tempDiv.firstElementChild;
+                const cardEl = createCardElement(station.commonName, badgeText, badgeClass, statusClass, [], station.isFlagged, details, hasDetails, true);
                 cardEl.classList.add('fade-in');
                 cardEl.style.animationDelay = `${(sortedLines.length + index) * 0.05}s`;
                 stationList.appendChild(cardEl);
@@ -465,8 +466,7 @@ async function loadTrackedStatus() {
     }
 }
 
-function showStatusDetail(name, detailsJson, isStation = false) {
-    const details = JSON.parse(decodeURIComponent(detailsJson));
+function showStatusDetail(name, details, isStation = false) {
     const modalLabel = document.getElementById('statusModalLabel');
     const modalBody = document.getElementById('statusModalBody');
     if (modalLabel && modalBody) {
@@ -484,7 +484,7 @@ function showStatusDetail(name, detailsJson, isStation = false) {
         Object.values(grouped).forEach((group, i) => {
             const badges = group.statuses.map(s => {
                 const classes = getStatusColorClasses(s.urgency, isStation);
-                return `<span class="badge ${classes.badge} me-2">${s.description}</span>`;
+                return `<span class="badge ${classes.badge} me-2">${escapeHtml(s.description)}</span>`;
             }).join('');
 
             html += `
@@ -492,7 +492,7 @@ function showStatusDetail(name, detailsJson, isStation = false) {
                     <div class="d-flex flex-wrap align-items-center mb-2 gap-1">
                         ${badges}
                     </div>
-                    ${group.reason ? `<p class="small text-muted mb-0">${group.reason}</p>` : '<p class="small text-muted mb-0 italic">No further details provided by TfL.</p>'}
+                    ${group.reason ? `<p class="small text-muted mb-0">${escapeHtml(group.reason)}</p>` : '<p class="small text-muted mb-0 italic">No further details provided by TfL.</p>'}
                 </div>
             `;
         });
@@ -503,37 +503,78 @@ function showStatusDetail(name, detailsJson, isStation = false) {
     }
 }
 
-function createCardHtml(name, severity, badgeClass, statusClass, reasons, isFlagged = false, details = null, hasDetails = false, isStation = false) {
-    const bell = isFlagged ? '<i class="bi bi-bell-fill me-2"></i>' : '';
+function createCardElement(name, severity, badgeClass, statusClass, reasons, isFlagged = false, details = null, hasDetails = false, isStation = false) {
+    const col = document.createElement('div');
+    col.className = 'col-md-6 col-lg-4';
     
-    let infoIcon = '';
-    let cardAttr = '';
+    // Outer Card
+    const card = document.createElement('div');
+    card.className = `card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'flagged' : ''}`;
+    
+    // Click/Interaction Logic
     if (details && (details.length > 2 || hasDetails)) {
-        const detailsJson = encodeURIComponent(JSON.stringify(details));
-        const safeDetailsJson = detailsJson.replace(/'/g, "\\'");
-        const safeName = name.replace(/'/g, "\\'");
+        card.style.cursor = 'pointer';
+        card.setAttribute('role', 'button');
+        card.setAttribute('tabindex', '0');
         
-        // Only show (i) icon if there are 3+ statuses (the "& More" case)
-        if (details.length > 2) {
-            infoIcon = ` <i class="bi bi-info-circle-fill ms-1"></i>`;
-        }
+        const clickHandler = (e) => {
+            // Prevent triggering if clicking a link/button inside (though there are none currently)
+            showStatusDetail(name, details, isStation);
+        };
         
-        cardAttr = `onclick="showStatusDetail('${safeName}', '${safeDetailsJson}', ${isStation})" onkeydown="if(event.key==='Enter'||event.key===' '){showStatusDetail('${safeName}', '${safeDetailsJson}', ${isStation}); event.preventDefault();}" tabindex="0" role="button" style="cursor: pointer;"`;
+        card.addEventListener('click', clickHandler);
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                clickHandler();
+            }
+        });
     }
 
-    return `
-        <div class="col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm line-card ${statusClass} ${isFlagged ? 'flagged' : ''}" ${cardAttr}>
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-start mb-2">
-                        <h5 class="card-title fw-bold mb-0">${bell}${name}</h5>
-                        <span class="badge ${badgeClass}">${severity}${infoIcon}</span>
-                    </div>
-                    ${reasons.map(r => `<p class="card-text small text-muted mt-2 mb-0">${r}</p>`).join('')}
-                </div>
-            </div>
-        </div>
-    `;
+    // Card Body
+    const body = document.createElement('div');
+    body.className = 'card-body';
+
+    // Header Row
+    const header = document.createElement('div');
+    header.className = 'd-flex justify-content-between align-items-start mb-2';
+
+    // Title
+    const title = document.createElement('h5');
+    title.className = 'card-title fw-bold mb-0';
+    if (isFlagged) {
+        const bell = document.createElement('i');
+        bell.className = 'bi bi-bell-fill me-2';
+        title.appendChild(bell);
+    }
+    title.appendChild(document.createTextNode(name));
+
+    // Badge
+    const badge = document.createElement('span');
+    badge.className = `badge ${badgeClass}`;
+    badge.textContent = severity;
+    if (details && details.length > 2) {
+        const info = document.createElement('i');
+        info.className = 'bi bi-info-circle-fill ms-1';
+        badge.appendChild(info);
+    }
+
+    header.appendChild(title);
+    header.appendChild(badge);
+    body.appendChild(header);
+
+    // Reasons
+    reasons.forEach(r => {
+        const p = document.createElement('p');
+        p.className = 'card-text small text-muted mt-2 mb-0';
+        p.textContent = r;
+        body.appendChild(p);
+    });
+
+    card.appendChild(body);
+    col.appendChild(card);
+
+    return col;
 }
 
 // Global scope for onclick
@@ -620,7 +661,7 @@ function renderLines() {
             <div class="card h-100 shadow-sm tracking-card ${tracked ? 'active' : ''}">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="card-title fw-bold mb-0">${line.name}</h5>
+                        <h5 class="card-title fw-bold mb-0">${escapeHtml(line.name)}</h5>
                         <button class="btn btn-sm ${tracked ? 'btn-danger' : 'btn-primary'}" 
                             onclick="toggleLine(${line.lineId}, ${!!tracked})">
                             ${tracked ? '<i class="bi bi-dash-circle me-1"></i>Untrack' : '<i class="bi bi-plus-circle me-1"></i>Track'}
@@ -730,13 +771,13 @@ function renderStations() {
             <div class="card h-100 shadow-sm tracking-card ${tracked ? 'active' : ''}">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-1">
-                        <h6 class="card-title fw-bold mb-0">${station.commonName}</h6>
+                        <h6 class="card-title fw-bold mb-0">${escapeHtml(station.commonName)}</h6>
                         <button class="btn btn-sm ${tracked ? 'btn-danger' : 'btn-primary'}" 
                             onclick="toggleStation(${station.stationId}, ${!!tracked})">
                             ${tracked ? '<i class="bi bi-dash-circle me-1"></i>Untrack' : '<i class="bi bi-plus-circle me-1"></i>Track'}
                         </button>
                     </div>
-                    <small class="text-muted d-block" style="font-size: 0.7rem;">${station.tflId}</small>
+                    <small class="text-muted d-block" style="font-size: 0.7rem;">${escapeHtml(station.tflId)}</small>
                     ${settingsHtml}
                 </div>
             </div>
